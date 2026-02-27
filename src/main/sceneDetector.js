@@ -35,55 +35,56 @@ function detectScenes(videoPath, threshold, onProgress) {
 
       detectionProcess = spawn(ffmpegPath, args);
 
-      let stderr = '';
+      let lineBuffer = '';
+      const seenTimes = new Set();
 
-      // Parse stderr for scene detection output
+      // Parse stderr for scene detection output — process only new lines
       detectionProcess.stderr.on('data', (data) => {
-        stderr += data.toString();
+        lineBuffer += data.toString();
 
-        // Extract duration from first pass
-        if (totalDuration === 0) {
-          const durationMatch = stderr.match(/Duration: (\d+):(\d+):([\d.]+)/);
-          if (durationMatch) {
-            const hours = parseInt(durationMatch[1]);
-            const minutes = parseInt(durationMatch[2]);
-            const seconds = parseFloat(durationMatch[3]);
-            totalDuration = hours * 3600 + minutes * 60 + seconds;
+        // Split into complete lines; keep incomplete last chunk in buffer
+        const lines = lineBuffer.split('\n');
+        lineBuffer = lines.pop(); // keep incomplete line
+
+        for (const line of lines) {
+          // Extract duration from first occurrence
+          if (totalDuration === 0) {
+            const durationMatch = line.match(/Duration: (\d+):(\d+):([\d.]+)/);
+            if (durationMatch) {
+              const hours = parseInt(durationMatch[1]);
+              const minutes = parseInt(durationMatch[2]);
+              const seconds = parseFloat(durationMatch[3]);
+              totalDuration = hours * 3600 + minutes * 60 + seconds;
+            }
           }
-        }
 
-        // Extract scene timestamps
-        const lines = stderr.split('\n');
-        const seenTimes = new Set();
-        lines.forEach((line) => {
-          // Look for "showinfo" output lines with pts_time
+          // Extract scene timestamps from showinfo output
           if (line.includes('pts_time:')) {
             const match = line.match(/pts_time:([\d.]+)/);
             if (match) {
               const time = parseFloat(match[1]);
-              // Deduplicate: skip if this timestamp was already added
-              if (seenTimes.has(time)) return;
-              seenTimes.add(time);
-              const index = scenes.length;
-              scenes.push({
-                index,
-                startTime: time,
-                tc: secondsToTimecode(time),
-              });
+              if (!seenTimes.has(time)) {
+                seenTimes.add(time);
+                scenes.push({
+                  index: scenes.length,
+                  startTime: time,
+                  tc: secondsToTimecode(time),
+                });
+              }
               processedTime = Math.max(processedTime, time);
             }
           }
 
-          // Also check for frame info lines with pkt_pts_time
+          // Track progress from frame info lines
           if (line.includes('[Parsed_showinfo') && line.includes('pkt_pts_time=')) {
             const match = line.match(/pkt_pts_time=([\d.]+)/);
             if (match) {
               processedTime = Math.max(processedTime, parseFloat(match[1]));
             }
           }
-        });
+        }
 
-        // Calculate and report progress
+        // Report progress
         if (totalDuration > 0 && onProgress) {
           const progress = Math.min((processedTime / totalDuration) * 100, 100);
           onProgress({

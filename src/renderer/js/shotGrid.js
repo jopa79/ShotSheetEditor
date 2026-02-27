@@ -176,6 +176,8 @@ const ShotGrid = (() => {
    * Set grid item size (updates CSS grid-template-columns)
    * @param {number} px - Grid item size in pixels
    */
+  const GRID_SIZES = [150, 200, 300, 400];
+
   const setGridSize = (px) => {
     if (_gridElement) {
       const gap = 20;
@@ -183,6 +185,22 @@ const ShotGrid = (() => {
       _itemSize = px + gap;
     }
     AppState.setState({ gridSize: px });
+  };
+
+  const zoomIn = () => {
+    const current = AppState.get('gridSize');
+    const next = GRID_SIZES.find((s) => s > current);
+    if (next) setGridSize(next);
+  };
+
+  const zoomOut = () => {
+    const current = AppState.get('gridSize');
+    const prev = [...GRID_SIZES].reverse().find((s) => s < current);
+    if (prev) setGridSize(prev);
+  };
+
+  const zoomReset = () => {
+    setGridSize(200);
   };
 
   /**
@@ -283,5 +301,8 @@ const ShotGrid = (() => {
     cleanup,
     renderGrid,
     setGridSize,
+    zoomIn,
+    zoomOut,
+    zoomReset,
   };
 })();
