@@ -1,4 +1,5 @@
 const { ipcMain } = require('electron');
+const path = require('path');
 const { IPC_CHANNELS } = require('../shared/constants');
 const videoManager = require('./videoManager');
 const sceneDetector = require('./sceneDetector');
@@ -24,6 +25,33 @@ function wrapHandler(handler) {
   };
 }
 
+// Helper: Validate string input
+function validateString(value, name) {
+  if (!value || typeof value !== 'string') {
+    throw new Error(`Invalid ${name}: expected a non-empty string`);
+  }
+  return value;
+}
+
+// Helper: Validate numeric input within range
+function validateNumber(value, min, max, fallback, name) {
+  const num = parseFloat(value);
+  if (!Number.isFinite(num)) {
+    if (fallback !== undefined) return fallback;
+    throw new Error(`Invalid ${name}: expected a number`);
+  }
+  return Math.max(min, Math.min(max, num));
+}
+
+// Helper: Validate thumbSize dimensions
+function validateThumbSize(thumbSize) {
+  if (!thumbSize || typeof thumbSize !== 'object') return undefined;
+  return {
+    width: validateNumber(thumbSize.width, 32, 3840, 320, 'thumbSize.width'),
+    height: validateNumber(thumbSize.height, 32, 2160, 180, 'thumbSize.height'),
+  };
+}
+
 // Helper: Send progress updates from main to renderer
 function sendProgress(mainWindow, channel, data) {
   if (mainWindow && !mainWindow.isDestroyed()) {
@@ -36,7 +64,7 @@ function registerIpcHandlers(mainWindow) {
   ipcMain.handle(
     IPC_CHANNELS.VIDEO_OPEN,
     wrapHandler(async (event, filePath) => {
-      // Validate video file exists and get metadata
+      validateString(filePath, 'filePath');
       const meta = await videoManager.getVideoMeta(filePath);
       if (!meta || !meta.success) {
         return { success: false, error: meta?.error || 'Failed to open video' };
@@ -48,6 +76,7 @@ function registerIpcHandlers(mainWindow) {
   ipcMain.handle(
     IPC_CHANNELS.VIDEO_GET_META,
     wrapHandler(async (event, videoPath) => {
+      validateString(videoPath, 'videoPath');
       const result = await videoManager.getVideoMeta(videoPath);
       return result;
     }),
@@ -57,12 +86,10 @@ function registerIpcHandlers(mainWindow) {
   ipcMain.handle(
     IPC_CHANNELS.SCENE_DETECT,
     wrapHandler(async (event, { videoPath, threshold }) => {
-      return new Promise((resolve) => {
-        sceneDetector.detectScenes(videoPath, threshold, (progress) => {
-          sendProgress(mainWindow, IPC_CHANNELS.SCENE_DETECT_PROGRESS, progress);
-        }).then((result) => {
-          resolve(result);
-        });
+      validateString(videoPath, 'videoPath');
+      const safeThreshold = validateNumber(threshold, 0.01, 1.0, 0.3, 'threshold');
+      return sceneDetector.detectScenes(videoPath, safeThreshold, (progress) => {
+        sendProgress(mainWindow, IPC_CHANNELS.SCENE_DETECT_PROGRESS, progress);
       });
     }),
   );
@@ -76,14 +103,14 @@ function registerIpcHandlers(mainWindow) {
   ipcMain.handle(
     IPC_CHANNELS.FRAME_EXTRACT_BATCH,
     wrapHandler(async (event, { videoPath, scenes, outputDir, thumbSize }) => {
-      return new Promise((resolve) => {
-        frameExtractor
-          .extractFrames(videoPath, scenes, outputDir, thumbSize, (progress) => {
-            sendProgress(mainWindow, IPC_CHANNELS.FRAME_EXTRACT_PROGRESS, progress);
-          })
-          .then((result) => {
-            resolve(result);
-          });
+      validateString(videoPath, 'videoPath');
+      validateString(outputDir, 'outputDir');
+      if (!Array.isArray(scenes)) {
+        throw new Error('Invalid scenes: expected an array');
+      }
+      const safeThumbSize = validateThumbSize(thumbSize);
+      return frameExtractor.extractFrames(videoPath, scenes, outputDir, safeThumbSize, (progress) => {
+        sendProgress(mainWindow, IPC_CHANNELS.FRAME_EXTRACT_PROGRESS, progress);
       });
     }),
   );
@@ -93,10 +120,34 @@ function registerIpcHandlers(mainWindow) {
     IPC_CHANNELS.FRAME_GET_THUMB,
     wrapHandler(async (event, thumbPath) => {
       const fs = require('fs');
-      if (!fs.existsSync(thumbPath)) {
+      const os = require('os');
+
+      // Validate thumbPath is a string
+      if (!thumbPath || typeof thumbPath !== 'string') {
+        return { success: false, error: 'Invalid thumbnail path' };
+      }
+
+      // Validate file extension
+      const ext = path.extname(thumbPath).toLowerCase();
+      if (!['.jpg', '.jpeg', '.png'].includes(ext)) {
+        return { success: false, error: 'Invalid file type' };
+      }
+
+      // Resolve and validate path is within allowed directories
+      const resolved = path.resolve(thumbPath);
+      const homeDir = os.homedir();
+      const tmpDir = os.tmpdir();
+      const isAllowed =
+        resolved.startsWith(homeDir + path.sep) ||
+        resolved.startsWith(tmpDir + path.sep);
+      if (!isAllowed) {
+        return { success: false, error: 'Access denied: path outside allowed directories' };
+      }
+
+      if (!fs.existsSync(resolved)) {
         return { success: false, error: 'Thumbnail not found' };
       }
-      const data = fs.readFileSync(thumbPath);
+      const data = await fs.promises.readFile(resolved);
       const base64 = data.toString('base64');
       return { success: true, data: `data:image/jpeg;base64,${base64}` };
     }),
@@ -122,6 +173,10 @@ function registerIpcHandlers(mainWindow) {
   ipcMain.handle(
     IPC_CHANNELS.PROJECT_SAVE,
     wrapHandler(async (event, { projectPath, data }) => {
+      validateString(projectPath, 'projectPath');
+      if (!data || typeof data !== 'object') {
+        throw new Error('Invalid project data');
+      }
       const result = projectManager.saveProject(projectPath, data);
       return result;
     }),
@@ -132,14 +187,8 @@ function registerIpcHandlers(mainWindow) {
     IPC_CHANNELS.EXPORT_SEQUENCE,
     wrapHandler(async (event, data) => {
       const { videoPath, startTime, endTime, outputPath, codec } = data;
-      return new Promise((resolve) => {
-        exportManager
-          .exportSequence(videoPath, startTime, endTime, outputPath, codec, (progress) => {
-            sendProgress(mainWindow, IPC_CHANNELS.EXPORT_SEQUENCE_PROGRESS, progress);
-          })
-          .then((result) => {
-            resolve(result);
-          });
+      return exportManager.exportSequence(videoPath, startTime, endTime, outputPath, codec, (progress) => {
+        sendProgress(mainWindow, IPC_CHANNELS.EXPORT_SEQUENCE_PROGRESS, progress);
       });
     }),
   );
@@ -148,15 +197,8 @@ function registerIpcHandlers(mainWindow) {
     IPC_CHANNELS.EXPORT_ZIP,
     wrapHandler(async (event, data) => {
       const { thumbnailPaths, outputPath } = data;
-      return new Promise((resolve) => {
-        exportManager
-          .exportZip(thumbnailPaths, outputPath, (progress) => {
-            // Reuse sequence progress channel for ZIP progress updates
-            sendProgress(mainWindow, IPC_CHANNELS.EXPORT_SEQUENCE_PROGRESS, progress);
-          })
-          .then((result) => {
-            resolve(result);
-          });
+      return exportManager.exportZip(thumbnailPaths, outputPath, (progress) => {
+        sendProgress(mainWindow, IPC_CHANNELS.EXPORT_SEQUENCE_PROGRESS, progress);
       });
     }),
   );

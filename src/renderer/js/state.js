@@ -157,20 +157,15 @@ const AppState = (() => {
    * @returns {array} Array of visible scene objects with indices
    */
   const getVisibleScenes = () => {
+    const deletedSet = new Set(_state.deletedIndices);
+    const favoriteSet = _state.filterMode === 'favorites'
+      ? new Set(_state.favoriteIndices)
+      : null;
     const visible = [];
 
     _state.scenes.forEach((scene, idx) => {
-      // Skip deleted shots
-      if (_state.deletedIndices.includes(idx)) {
-        return;
-      }
-
-      // Apply filter mode
-      if (_state.filterMode === 'favorites') {
-        if (!_state.favoriteIndices.includes(idx)) {
-          return;
-        }
-      }
+      if (deletedSet.has(idx)) return;
+      if (favoriteSet && !favoriteSet.has(idx)) return;
 
       visible.push({
         ...scene,

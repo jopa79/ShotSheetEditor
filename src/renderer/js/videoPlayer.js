@@ -9,34 +9,6 @@ const VideoPlayer = (() => {
   let _stateListeners = [];
 
   /**
-   * Format seconds to HH:MM:SS.FF timecode
-   * @param {number} seconds - Time in seconds
-   * @returns {string} Formatted timecode
-   */
-  const formatTimecode = (seconds) => {
-    if (!Number.isFinite(seconds)) {
-      return '00:00:00.00';
-    }
-
-    const totalFrames = Math.round(seconds * 30); // 30fps
-    const frames = totalFrames % 30;
-    const totalSeconds = Math.floor(totalFrames / 30);
-    const hours = Math.floor(totalSeconds / 3600);
-    const minutes = Math.floor((totalSeconds % 3600) / 60);
-    const secs = totalSeconds % 60;
-
-    return (
-      String(hours).padStart(2, '0') +
-      ':' +
-      String(minutes).padStart(2, '0') +
-      ':' +
-      String(secs).padStart(2, '0') +
-      '.' +
-      String(frames).padStart(2, '0')
-    );
-  };
-
-  /**
    * Load video file
    * @param {string} filePath - Path to video file
    */
@@ -68,7 +40,8 @@ const VideoPlayer = (() => {
   };
 
   /**
-   * Extract thumbnails for all scenes
+   * Extract thumbnails for all scenes via batch extraction,
+   * then update scenes with the extracted file paths.
    */
   const _extractThumbsForScenes = async () => {
     const scenes = AppState.get('scenes');
@@ -76,12 +49,19 @@ const VideoPlayer = (() => {
 
     try {
       const videoPath = AppState.get('videoPath');
+      const projectPath = AppState.get('projectPath');
+      if (!projectPath) return;
 
-      // Batch extract thumbnails
-      for (const [idx, scene] of scenes.entries()) {
-        const thumbPath = await IPC.getThumb(videoPath, scene.startTime);
-        if (thumbPath) {
-          scenes[idx].thumbPath = thumbPath;
+      const outputDir = projectPath + '/thumbnails';
+
+      // Batch extract all frames via the correct IPC channel
+      const result = await IPC.extractFrames(videoPath, scenes, outputDir);
+      if (!result || !result.success || !result.frames) return;
+
+      // Update scenes with extracted thumbnail paths
+      for (const frame of result.frames) {
+        if (frame && frame.path != null && frame.index != null && scenes[frame.index]) {
+          scenes[frame.index].thumbPath = frame.path;
         }
       }
 
@@ -174,7 +154,7 @@ const VideoPlayer = (() => {
   const init = () => {
     _videoElement = document.querySelector('#videoPlayer');
     _tcDisplayElement = document.querySelector('#tcDisplay');
-    _playButtonElement = document.querySelector('#playButton');
+    _playButtonElement = document.querySelector('#btnPlayPause');
 
     if (!_videoElement) {
       console.error('VideoPlayer: video element not found');

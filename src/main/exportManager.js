@@ -119,6 +119,14 @@ function exportZip(thumbnailPaths, outputPath, onProgress) {
 
       let totalSize = 0;
       let addedSize = 0;
+      let resolved = false;
+
+      const safeResolve = (result) => {
+        if (!resolved) {
+          resolved = true;
+          resolve(result);
+        }
+      };
 
       // Calculate total size for progress
       thumbnailPaths.forEach((thumbPath) => {
@@ -129,7 +137,7 @@ function exportZip(thumbnailPaths, outputPath, onProgress) {
       });
 
       output.on('close', () => {
-        resolve({
+        safeResolve({
           success: true,
           outputPath,
           fileSize: archive.pointer(),
@@ -137,7 +145,7 @@ function exportZip(thumbnailPaths, outputPath, onProgress) {
       });
 
       archive.on('error', (error) => {
-        resolve({
+        safeResolve({
           success: false,
           error: error.message,
         });
@@ -160,11 +168,19 @@ function exportZip(thumbnailPaths, outputPath, onProgress) {
 
       archive.pipe(output);
 
-      // Add files to archive
+      // Add files to archive (validate paths are within home/tmp dirs)
+      const os = require('os');
+      const homeDir = os.homedir();
+      const tmpDir = os.tmpdir();
       thumbnailPaths.forEach((thumbPath) => {
-        if (fs.existsSync(thumbPath)) {
-          const filename = path.basename(thumbPath);
-          archive.file(thumbPath, { name: filename });
+        if (typeof thumbPath !== 'string') return;
+        const resolved = path.resolve(thumbPath);
+        const isAllowed =
+          resolved.startsWith(homeDir + path.sep) ||
+          resolved.startsWith(tmpDir + path.sep);
+        if (isAllowed && fs.existsSync(resolved)) {
+          const filename = path.basename(resolved);
+          archive.file(resolved, { name: filename });
         }
       });
 

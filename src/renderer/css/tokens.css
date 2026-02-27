@@ -3,19 +3,6 @@
    ShotSheetEditor - Dark Developer-Tool UI
    ============================================================================ */
 
-/* FONT DEFINITIONS */
-@font-face {
-  font-family: 'IBM Plex Sans';
-  src: url('https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600');
-  font-display: swap;
-}
-
-@font-face {
-  font-family: 'JetBrains Mono';
-  src: url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700');
-  font-display: swap;
-}
-
 :root {
   /* DARK THEME (DEFAULT) */
   /* Background Scale */

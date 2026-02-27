@@ -49,7 +49,7 @@ const Toolbar = (() => {
         });
 
         UndoRedo.clear();
-        VideoPlayer.loadVideo(filePath);
+        // VideoPlayer.loadVideo is triggered by onStateChange('videoPath')
         showToast('Video loaded successfully', 'success');
 
         // Auto-detect scenes
@@ -202,11 +202,36 @@ const Toolbar = (() => {
    */
   const saveProject = async () => {
     const videoPath = AppState.get('videoPath');
-    if (!videoPath) return;
+    const projectPath = AppState.get('projectPath');
+    if (!videoPath || !projectPath) {
+      showToast('No project to save', 'warning');
+      return;
+    }
 
-    // TODO: implement save
-    AppState.setState({ isDirty: false });
-    showToast('Project saved', 'success');
+    try {
+      const data = {
+        videoPath,
+        scenes: AppState.get('scenes'),
+        favoriteIndices: AppState.get('favoriteIndices'),
+        deletedIndices: AppState.get('deletedIndices'),
+        settings: {
+          threshold: AppState.get('threshold'),
+          gridSize: AppState.get('gridSize'),
+        },
+        modifiedAt: new Date().toISOString(),
+      };
+
+      const result = await IPC.saveProject(projectPath, data);
+      if (result && result.success) {
+        AppState.setState({ isDirty: false });
+        showToast('Project saved', 'success');
+      } else {
+        showToast(result?.error || 'Failed to save project', 'error');
+      }
+    } catch (err) {
+      console.error('Toolbar: saveProject failed', err);
+      showToast('Failed to save project', 'error');
+    }
   };
 
   /**
@@ -270,9 +295,10 @@ const Toolbar = (() => {
     // Grid size pill buttons
     const gridSizeGroup = document.querySelector('#gridSizeGroup');
     if (gridSizeGroup) {
+      const sizeMap = { small: 150, medium: 200, large: 300, xlarge: 400 };
       gridSizeGroup.querySelectorAll('[data-size]').forEach((btn) => {
         btn.addEventListener('click', () => {
-          AppState.setState({ gridSize: btn.dataset.size });
+          AppState.setState({ gridSize: sizeMap[btn.dataset.size] || 200 });
           gridSizeGroup.querySelectorAll('[data-size]').forEach((b) => {
             b.classList.toggle('active', b === btn);
           });

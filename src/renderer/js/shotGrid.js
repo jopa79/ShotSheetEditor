@@ -15,34 +15,6 @@ const ShotGrid = (() => {
   let _visibleRange = { start: 0, end: 0 };
 
   /**
-   * Format seconds to HH:MM:SS.FF timecode
-   * @param {number} seconds - Time in seconds
-   * @returns {string} Formatted timecode
-   */
-  const formatTimecode = (seconds) => {
-    if (!Number.isFinite(seconds)) {
-      return '00:00:00.00';
-    }
-
-    const totalFrames = Math.round(seconds * 30); // 30fps
-    const frames = totalFrames % 30;
-    const totalSeconds = Math.floor(totalFrames / 30);
-    const hours = Math.floor(totalSeconds / 3600);
-    const minutes = Math.floor((totalSeconds % 3600) / 60);
-    const secs = totalSeconds % 60;
-
-    return (
-      String(hours).padStart(2, '0') +
-      ':' +
-      String(minutes).padStart(2, '0') +
-      ':' +
-      String(secs).padStart(2, '0') +
-      '.' +
-      String(frames).padStart(2, '0')
-    );
-  };
-
-  /**
    * Calculate visible range based on scroll position
    */
   const _calculateVisibleRange = () => {
@@ -91,7 +63,7 @@ const ShotGrid = (() => {
     // Star button
     const star = document.createElement('button');
     star.className = 'fav-star';
-    star.innerHTML = isFavorite ? '★' : '☆';
+    star.textContent = isFavorite ? '★' : '☆';
     star.setAttribute('aria-label', isFavorite ? 'Remove from favorites' : 'Add to favorites');
     star.addEventListener('click', (e) => {
       e.stopPropagation();
@@ -102,7 +74,7 @@ const ShotGrid = (() => {
     // Selection badge
     const badge = document.createElement('div');
     badge.className = 'sel-badge';
-    badge.innerHTML = '✓';
+    badge.textContent = '✓';
     if (isSelected) {
       badge.style.display = 'block';
     } else {
@@ -120,7 +92,7 @@ const ShotGrid = (() => {
     // Timecode display
     const tc = document.createElement('div');
     tc.className = 'shot-tc';
-    tc.innerHTML = `#${idx + 1} — ${formatTimecode(scene.startTime)}`;
+    tc.textContent = `#${idx + 1} — ${formatTimecode(scene.startTime)}`;
     card.appendChild(tc);
 
     // Click handlers
@@ -204,6 +176,8 @@ const ShotGrid = (() => {
    * Set grid item size (updates CSS grid-template-columns)
    * @param {number} px - Grid item size in pixels
    */
+  const GRID_SIZES = [150, 200, 300, 400];
+
   const setGridSize = (px) => {
     if (_gridElement) {
       const gap = 20;
@@ -211,6 +185,22 @@ const ShotGrid = (() => {
       _itemSize = px + gap;
     }
     AppState.setState({ gridSize: px });
+  };
+
+  const zoomIn = () => {
+    const current = AppState.get('gridSize');
+    const next = GRID_SIZES.find((s) => s > current);
+    if (next) setGridSize(next);
+  };
+
+  const zoomOut = () => {
+    const current = AppState.get('gridSize');
+    const prev = [...GRID_SIZES].reverse().find((s) => s < current);
+    if (prev) setGridSize(prev);
+  };
+
+  const zoomReset = () => {
+    setGridSize(200);
   };
 
   /**
@@ -311,6 +301,8 @@ const ShotGrid = (() => {
     cleanup,
     renderGrid,
     setGridSize,
-    formatTimecode,
+    zoomIn,
+    zoomOut,
+    zoomReset,
   };
 })();

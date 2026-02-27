@@ -2,17 +2,9 @@ const { spawn } = require('child_process');
 const path = require('path');
 const fs = require('fs');
 const ffmpegBridge = require('./ffmpegBridge');
-const { THUMB_SIZE } = require('../shared/constants');
+const { THUMB_SIZE, secondsToTimecode } = require('../shared/constants');
 
 const MAX_CONCURRENT_EXTRACTIONS = 5;
-
-// Convert seconds to timecode HH:MM:SS.mmm
-function secondsToTimecode(seconds) {
-  const hours = Math.floor(seconds / 3600);
-  const minutes = Math.floor((seconds % 3600) / 60);
-  const secs = seconds % 60;
-  return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(secs.toFixed(3)).padStart(6, '0')}`;
-}
 
 // Extract single frame
 function extractFrame(videoPath, timestamp, outputPath, thumbSize) {
@@ -85,6 +77,9 @@ async function extractFrames(videoPath, scenes, outputDir, thumbSize, onProgress
     return new Promise((resolve) => {
       const processNext = async () => {
         if (queue.length === 0 && processing === 0) {
+          if (onProgress) {
+            onProgress({ progress: 100, completed: scenes.length, total: scenes.length });
+          }
           resolve({ success: true, frames });
           return;
         }
@@ -102,7 +97,7 @@ async function extractFrames(videoPath, scenes, outputDir, thumbSize, onProgress
 
           const result = await extractFrame(
             videoPath,
-            task.scene.time,
+            task.scene.startTime,
             outputPath,
             thumbSize || THUMB_SIZE,
           );
@@ -111,7 +106,7 @@ async function extractFrames(videoPath, scenes, outputDir, thumbSize, onProgress
             frames[task.index] = {
               index: task.scene.index,
               path: outputPath,
-              timestamp: task.scene.time,
+              timestamp: task.scene.startTime,
               tc: task.scene.tc,
             };
           } else {

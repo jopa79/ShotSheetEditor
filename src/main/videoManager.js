@@ -6,6 +6,19 @@ const { SUPPORTED_FORMATS } = require('../shared/constants');
 
 const MAX_VIDEO_SIZE_BYTES = 50 * 1024 * 1024 * 1024; // 50 GB
 
+// Safely parse ffprobe fraction strings like "30000/1001" or "30"
+function parseFraction(str) {
+  if (!str || typeof str !== 'string') return 0;
+  const parts = str.split('/');
+  const numerator = parseFloat(parts[0]);
+  if (parts.length === 2) {
+    const denominator = parseFloat(parts[1]);
+    if (!Number.isFinite(numerator) || !Number.isFinite(denominator) || denominator === 0) return 0;
+    return numerator / denominator;
+  }
+  return Number.isFinite(numerator) ? numerator : 0;
+}
+
 // Validate video file
 function validateVideo(videoPath) {
   try {
@@ -91,7 +104,7 @@ function getVideoMeta(videoPath) {
             data: {
               duration: parseFloat(format.duration) || 0,
               fps: videoStream?.r_frame_rate
-                ? eval(videoStream.r_frame_rate)
+                ? parseFraction(videoStream.r_frame_rate)
                 : 0,
               width: videoStream?.width || 0,
               height: videoStream?.height || 0,

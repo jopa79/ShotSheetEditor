@@ -73,7 +73,7 @@ const Shortcuts = (() => {
         break;
 
       // F: Favorite Selected
-      case event.key === 'f' || event.key === 'F':
+      case event.key === 'f' || event.key === 'F': {
         event.preventDefault();
         const selected = AppState.get('selectedIndices');
         const favorites = AppState.get('favoriteIndices');
@@ -86,6 +86,7 @@ const Shortcuts = (() => {
           }
         }
         break;
+      }
 
       // Arrow Left: Previous Shot
       case event.key === 'ArrowLeft':
@@ -136,13 +137,14 @@ const Shortcuts = (() => {
         break;
 
       // V: Toggle Filter
-      case event.key === 'v' || event.key === 'V':
+      case event.key === 'v' || event.key === 'V': {
         event.preventDefault();
         const current = AppState.get('filterMode');
         AppState.setState({
           filterMode: current === 'all' ? 'favorites' : 'all',
         });
         break;
+      }
 
       default:
         break;
