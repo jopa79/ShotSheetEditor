@@ -79,7 +79,7 @@ const App = (() => {
     dialog.className = 'modal-dialog';
 
     if (typeof content === 'string') {
-      dialog.innerHTML = content;
+      dialog.textContent = content;
     } else {
       dialog.appendChild(content);
     }
@@ -88,7 +88,7 @@ const App = (() => {
     if (options.closeButton !== false) {
       const closeBtn = document.createElement('button');
       closeBtn.className = 'modal-close';
-      closeBtn.innerHTML = '×';
+      closeBtn.textContent = '×';
       closeBtn.addEventListener('click', () => {
         modal.remove();
       });
@@ -168,20 +168,22 @@ const App = (() => {
   /**
    * Handle drag and drop file drops
    */
+  let _dragDropCleanup = null;
+
   const _setupDragDrop = () => {
-    document.addEventListener('dragover', (e) => {
+    const dragoverHandler = (e) => {
       e.preventDefault();
       e.dataTransfer.dropEffect = 'copy';
       document.body.classList.add('drag-over');
-    });
+    };
 
-    document.addEventListener('dragleave', (e) => {
+    const dragleaveHandler = (e) => {
       if (e.target === document.body) {
         document.body.classList.remove('drag-over');
       }
-    });
+    };
 
-    document.addEventListener('drop', async (e) => {
+    const dropHandler = async (e) => {
       e.preventDefault();
       document.body.classList.remove('drag-over');
 
@@ -189,6 +191,14 @@ const App = (() => {
       if (files.length > 0) {
         const file = files[0];
         const filePath = file.path;
+
+        // Validate file extension against supported formats
+        const ext = '.' + filePath.split('.').pop().toLowerCase();
+        const SUPPORTED_FORMATS = ['.mp4', '.mov', '.mkv', '.avi', '.mxf', '.webm'];
+        if (!SUPPORTED_FORMATS.includes(ext)) {
+          showToast(`Unsupported format. Supported: ${SUPPORTED_FORMATS.join(', ')}`, 'warning');
+          return;
+        }
 
         try {
           const meta = await IPC.getVideoMeta(filePath);
@@ -212,7 +222,17 @@ const App = (() => {
           showToast('Failed to load video file', 'error');
         }
       }
-    });
+    };
+
+    document.addEventListener('dragover', dragoverHandler);
+    document.addEventListener('dragleave', dragleaveHandler);
+    document.addEventListener('drop', dropHandler);
+
+    _dragDropCleanup = () => {
+      document.removeEventListener('dragover', dragoverHandler);
+      document.removeEventListener('dragleave', dragleaveHandler);
+      document.removeEventListener('drop', dropHandler);
+    };
   };
 
   /**
@@ -351,7 +371,7 @@ const App = (() => {
           break;
 
         default:
-          console.log('App: Unknown menu action:', action);
+          console.warn('App: Unknown menu action:', action);
       }
     });
     if (menuActionCleanup) cleanups.push(menuActionCleanup);
@@ -402,8 +422,15 @@ const App = (() => {
   const cleanup = () => {
     VideoPlayer.cleanup();
     ShotGrid.cleanup();
+    SelectionManager.cleanup();
     Toolbar.cleanup();
     Shortcuts.cleanup();
+
+    // Cleanup drag & drop listeners
+    if (_dragDropCleanup) {
+      _dragDropCleanup();
+      _dragDropCleanup = null;
+    }
 
     // Cleanup IPC listeners
     _ipcListeners.forEach((fn) => {

@@ -176,6 +176,15 @@ ipcMain.handle(IPC_CHANNELS.APP_CONFIRM_QUIT, (_event) => {
     clearTimeout(quitTimer);
     quitTimer = null;
   }
+
+  // Cancel any in-flight operations before exiting
+  try {
+    const sceneDetector = require('./sceneDetector');
+    sceneDetector.cancelDetection();
+  } catch (_e) {
+    // Ignore if module not loaded
+  }
+
   isQuitting = true;
   app.exit(0);
 });

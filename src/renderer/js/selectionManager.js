@@ -5,6 +5,7 @@
  */
 const SelectionManager = (() => {
   let _selectionBar = null;
+  let _stateCleanup = null;
 
   /**
    * Select/toggle a single shot
@@ -231,13 +232,21 @@ const SelectionManager = (() => {
     }
 
     // Listen to selection changes
-    AppState.onStateChange('selectedIndices', () => {
+    _stateCleanup = AppState.onStateChange('selectedIndices', () => {
       updateSelectionBar();
     });
   };
 
+  const cleanup = () => {
+    if (_stateCleanup) {
+      _stateCleanup();
+      _stateCleanup = null;
+    }
+  };
+
   return {
     init,
+    cleanup,
     selectShot,
     selectRange,
     selectAll,

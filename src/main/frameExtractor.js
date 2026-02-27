@@ -77,6 +77,9 @@ async function extractFrames(videoPath, scenes, outputDir, thumbSize, onProgress
     return new Promise((resolve) => {
       const processNext = async () => {
         if (queue.length === 0 && processing === 0) {
+          if (onProgress) {
+            onProgress({ progress: 100, completed: scenes.length, total: scenes.length });
+          }
           resolve({ success: true, frames });
           return;
         }

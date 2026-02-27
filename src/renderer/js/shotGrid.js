@@ -63,7 +63,7 @@ const ShotGrid = (() => {
     // Star button
     const star = document.createElement('button');
     star.className = 'fav-star';
-    star.innerHTML = isFavorite ? '★' : '☆';
+    star.textContent = isFavorite ? '★' : '☆';
     star.setAttribute('aria-label', isFavorite ? 'Remove from favorites' : 'Add to favorites');
     star.addEventListener('click', (e) => {
       e.stopPropagation();
@@ -74,7 +74,7 @@ const ShotGrid = (() => {
     // Selection badge
     const badge = document.createElement('div');
     badge.className = 'sel-badge';
-    badge.innerHTML = '✓';
+    badge.textContent = '✓';
     if (isSelected) {
       badge.style.display = 'block';
     } else {
@@ -92,7 +92,7 @@ const ShotGrid = (() => {
     // Timecode display
     const tc = document.createElement('div');
     tc.className = 'shot-tc';
-    tc.innerHTML = `#${idx + 1} — ${formatTimecode(scene.startTime)}`;
+    tc.textContent = `#${idx + 1} — ${formatTimecode(scene.startTime)}`;
     card.appendChild(tc);
 
     // Click handlers

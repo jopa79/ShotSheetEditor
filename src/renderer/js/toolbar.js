@@ -295,9 +295,10 @@ const Toolbar = (() => {
     // Grid size pill buttons
     const gridSizeGroup = document.querySelector('#gridSizeGroup');
     if (gridSizeGroup) {
+      const sizeMap = { small: 150, medium: 200, large: 300, xlarge: 400 };
       gridSizeGroup.querySelectorAll('[data-size]').forEach((btn) => {
         btn.addEventListener('click', () => {
-          AppState.setState({ gridSize: parseInt(btn.dataset.size, 10) });
+          AppState.setState({ gridSize: sizeMap[btn.dataset.size] || 200 });
           gridSizeGroup.querySelectorAll('[data-size]').forEach((b) => {
             b.classList.toggle('active', b === btn);
           });
