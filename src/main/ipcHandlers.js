@@ -111,7 +111,7 @@ function registerIpcHandlers(mainWindow) {
       if (!fs.existsSync(resolved)) {
         return { success: false, error: 'Thumbnail not found' };
       }
-      const data = fs.readFileSync(resolved);
+      const data = await fs.promises.readFile(resolved);
       const base64 = data.toString('base64');
       return { success: true, data: `data:image/jpeg;base64,${base64}` };
     }),

@@ -1,15 +1,8 @@
 const { spawn } = require('child_process');
 const ffmpegBridge = require('./ffmpegBridge');
+const { secondsToTimecode } = require('../shared/constants');
 
 let detectionProcess = null;
-
-// Convert seconds to timecode HH:MM:SS.mmm
-function secondsToTimecode(seconds) {
-  const hours = Math.floor(seconds / 3600);
-  const minutes = Math.floor((seconds % 3600) / 60);
-  const secs = seconds % 60;
-  return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(secs.toFixed(3)).padStart(6, '0')}`;
-}
 
 // Detect scenes in video
 function detectScenes(videoPath, threshold, onProgress) {
@@ -61,12 +54,16 @@ function detectScenes(videoPath, threshold, onProgress) {
 
         // Extract scene timestamps
         const lines = stderr.split('\n');
+        const seenTimes = new Set();
         lines.forEach((line) => {
           // Look for "showinfo" output lines with pts_time
           if (line.includes('pts_time:')) {
             const match = line.match(/pts_time:([\d.]+)/);
             if (match) {
               const time = parseFloat(match[1]);
+              // Deduplicate: skip if this timestamp was already added
+              if (seenTimes.has(time)) return;
+              seenTimes.add(time);
               const index = scenes.length;
               scenes.push({
                 index,

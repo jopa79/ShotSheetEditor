@@ -49,7 +49,7 @@ const Toolbar = (() => {
         });
 
         UndoRedo.clear();
-        VideoPlayer.loadVideo(filePath);
+        // VideoPlayer.loadVideo is triggered by onStateChange('videoPath')
         showToast('Video loaded successfully', 'success');
 
         // Auto-detect scenes

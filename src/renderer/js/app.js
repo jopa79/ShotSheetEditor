@@ -30,10 +30,14 @@ const App = (() => {
    */
   const showToast = (message, type = 'info') => {
     if (!_toastContainer) {
-      _toastContainer = document.createElement('div');
-      _toastContainer.id = 'toastContainer';
-      _toastContainer.className = 'toast-container';
-      document.body.appendChild(_toastContainer);
+      // Use existing container from HTML, or create one as fallback
+      _toastContainer = document.getElementById('toastsContainer');
+      if (!_toastContainer) {
+        _toastContainer = document.createElement('div');
+        _toastContainer.id = 'toastsContainer';
+        _toastContainer.className = 'toasts-container';
+        document.body.appendChild(_toastContainer);
+      }
     }
 
     const toast = _createToastElement(message, type);
@@ -200,7 +204,7 @@ const App = (() => {
               isDirty: true,
             });
 
-            VideoPlayer.loadVideo(filePath);
+            // VideoPlayer.loadVideo is triggered by onStateChange('videoPath')
             showToast('Video loaded successfully', 'success');
           }
         } catch (err) {

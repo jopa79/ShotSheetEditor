@@ -127,6 +127,16 @@ async function createMainWindow() {
         reject(error);
       });
 
+      // Prevent navigation away from the app
+      mainWindow.webContents.on('will-navigate', (event) => {
+        event.preventDefault();
+      });
+
+      // Prevent opening new windows/popups
+      mainWindow.webContents.setWindowOpenHandler(() => {
+        return { action: 'deny' };
+      });
+
       // Show window when ready
       mainWindow.once('ready-to-show', () => {
         if (savedState?.isMaximized) {

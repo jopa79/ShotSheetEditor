@@ -2,17 +2,9 @@ const { spawn } = require('child_process');
 const path = require('path');
 const fs = require('fs');
 const ffmpegBridge = require('./ffmpegBridge');
-const { THUMB_SIZE } = require('../shared/constants');
+const { THUMB_SIZE, secondsToTimecode } = require('../shared/constants');
 
 const MAX_CONCURRENT_EXTRACTIONS = 5;
-
-// Convert seconds to timecode HH:MM:SS.mmm
-function secondsToTimecode(seconds) {
-  const hours = Math.floor(seconds / 3600);
-  const minutes = Math.floor((seconds % 3600) / 60);
-  const secs = seconds % 60;
-  return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(secs.toFixed(3)).padStart(6, '0')}`;
-}
 
 // Extract single frame
 function extractFrame(videoPath, timestamp, outputPath, thumbSize) {

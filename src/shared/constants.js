@@ -83,6 +83,14 @@ const EXPORT_CODECS = {
   },
 };
 
+// Convert seconds to timecode HH:MM:SS.mmm (for ffmpeg/main-process use)
+function secondsToTimecode(seconds) {
+  const hours = Math.floor(seconds / 3600);
+  const minutes = Math.floor((seconds % 3600) / 60);
+  const secs = seconds % 60;
+  return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(secs.toFixed(3)).padStart(6, '0')}`;
+}
+
 // Auto-save interval (5 minutes)
 const AUTO_SAVE_INTERVAL_MS = 5 * 60 * 1000;
 
@@ -98,4 +106,5 @@ module.exports = {
   EXPORT_CODECS,
   AUTO_SAVE_INTERVAL_MS,
   QUIT_TIMEOUT_MS,
+  secondsToTimecode,
 };

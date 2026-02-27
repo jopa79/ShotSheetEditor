@@ -173,22 +173,21 @@ const SelectionManager = (() => {
 
     _selectionBar.style.display = 'flex';
 
-    // Update count
-    const countEl = _selectionBar.querySelector('.sel-count');
+    // Update count (matching #selectionCount from index.html)
+    const countEl = _selectionBar.querySelector('#selectionCount');
     if (countEl) {
       countEl.textContent = `${selectedCount} selected`;
     }
 
-    // Update favorite button text
+    // Toggle favorite/unfavorite button visibility
     const selected = AppState.get('selectedIndices');
     const favorites = AppState.get('favoriteIndices');
-    const selectedSet = new Set(selected);
     const allAreFav = selected.every((idx) => favorites.includes(idx));
 
-    const favBtn = _selectionBar.querySelector('[data-action="favorite"]');
-    if (favBtn) {
-      favBtn.textContent = allAreFav ? 'Unfavorite' : 'Favorite';
-    }
+    const markFavBtn = _selectionBar.querySelector('#btnMarkFav');
+    const unmarkFavBtn = _selectionBar.querySelector('#btnUnmarkFav');
+    if (markFavBtn) markFavBtn.style.display = allAreFav ? 'none' : '';
+    if (unmarkFavBtn) unmarkFavBtn.style.display = allAreFav ? '' : 'none';
   };
 
   /**
@@ -202,37 +201,29 @@ const SelectionManager = (() => {
       return;
     }
 
-    // Bind selection bar buttons
-    const favBtn = _selectionBar.querySelector('[data-action="favorite"]');
+    // Bind selection bar buttons (matching IDs from index.html)
+    const favBtn = _selectionBar.querySelector('#btnMarkFav');
     if (favBtn) {
       favBtn.addEventListener('click', () => {
-        const selected = AppState.get('selectedIndices');
-        const favorites = AppState.get('favoriteIndices');
-        const allAreFav = selected.every((idx) => favorites.includes(idx));
-
-        if (allAreFav) {
-          unfavSelected();
-        } else {
-          favSelected();
-        }
+        favSelected();
       });
     }
 
-    const deleteBtn = _selectionBar.querySelector('[data-action="delete"]');
+    const unfavBtn = _selectionBar.querySelector('#btnUnmarkFav');
+    if (unfavBtn) {
+      unfavBtn.addEventListener('click', () => {
+        unfavSelected();
+      });
+    }
+
+    const deleteBtn = _selectionBar.querySelector('#btnDelete');
     if (deleteBtn) {
       deleteBtn.addEventListener('click', () => {
         deleteSelected();
       });
     }
 
-    const invertBtn = _selectionBar.querySelector('[data-action="invert"]');
-    if (invertBtn) {
-      invertBtn.addEventListener('click', () => {
-        invertSelection();
-      });
-    }
-
-    const deselectBtn = _selectionBar.querySelector('[data-action="deselect"]');
+    const deselectBtn = _selectionBar.querySelector('#btnClearSelection');
     if (deselectBtn) {
       deselectBtn.addEventListener('click', () => {
         deselectAll();
