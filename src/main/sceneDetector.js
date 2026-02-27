@@ -1,0 +1,146 @@
+const { spawn } = require('child_process');
+const ffmpegBridge = require('./ffmpegBridge');
+
+let detectionProcess = null;
+
+// Convert seconds to timecode HH:MM:SS.mmm
+function secondsToTimecode(seconds) {
+  const hours = Math.floor(seconds / 3600);
+  const minutes = Math.floor((seconds % 3600) / 60);
+  const secs = seconds % 60;
+  return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(secs.toFixed(3)).padStart(6, '0')}`;
+}
+
+// Detect scenes in video
+function detectScenes(videoPath, threshold, onProgress) {
+  return new Promise((resolve) => {
+    try {
+      const ffmpegPath = ffmpegBridge.getFFmpegPath();
+      if (!ffmpegPath) {
+        resolve({ success: false, error: 'ffmpeg not found' });
+        return;
+      }
+
+      const scenes = [];
+      let totalDuration = 0;
+      let processedTime = 0;
+
+      // ffmpeg command: detect scene changes
+      const args = [
+        '-i', videoPath,
+        '-vf', `select='gt(scene,${threshold})',showinfo`,
+        '-vsync', 'vfr',
+        '-f', 'null',
+        '-',
+      ];
+
+      detectionProcess = spawn(ffmpegPath, args);
+
+      let stderr = '';
+
+      // Parse stderr for scene detection output
+      detectionProcess.stderr.on('data', (data) => {
+        stderr += data.toString();
+
+        // Extract duration from first pass
+        if (totalDuration === 0) {
+          const durationMatch = stderr.match(/Duration: (\d+):(\d+):([\d.]+)/);
+          if (durationMatch) {
+            const hours = parseInt(durationMatch[1]);
+            const minutes = parseInt(durationMatch[2]);
+            const seconds = parseFloat(durationMatch[3]);
+            totalDuration = hours * 3600 + minutes * 60 + seconds;
+          }
+        }
+
+        // Extract scene timestamps
+        const lines = stderr.split('\n');
+        lines.forEach((line) => {
+          // Look for "showinfo" output lines with pts_time
+          if (line.includes('pts_time:')) {
+            const match = line.match(/pts_time:([\d.]+)/);
+            if (match) {
+              const time = parseFloat(match[1]);
+              const index = scenes.length;
+              scenes.push({
+                index,
+                time,
+                tc: secondsToTimecode(time),
+              });
+              processedTime = Math.max(processedTime, time);
+            }
+          }
+
+          // Also check for frame info lines with pkt_pts_time
+          if (line.includes('[Parsed_showinfo') && line.includes('pkt_pts_time=')) {
+            const match = line.match(/pkt_pts_time=([\d.]+)/);
+            if (match) {
+              processedTime = Math.max(processedTime, parseFloat(match[1]));
+            }
+          }
+        });
+
+        // Calculate and report progress
+        if (totalDuration > 0 && onProgress) {
+          const progress = Math.min((processedTime / totalDuration) * 100, 100);
+          onProgress({
+            progress,
+            processedTime,
+            totalDuration,
+            scenesDetected: scenes.length,
+          });
+        }
+      });
+
+      detectionProcess.stdout.on('data', (data) => {
+        // Ignore stdout (null format)
+      });
+
+      detectionProcess.on('close', (code) => {
+        detectionProcess = null;
+
+        if (code === 0 || code === null) {
+          resolve({
+            success: true,
+            scenes,
+          });
+        } else {
+          resolve({
+            success: false,
+            error: `ffmpeg failed with code ${code}`,
+          });
+        }
+      });
+
+      detectionProcess.on('error', (error) => {
+        detectionProcess = null;
+        resolve({
+          success: false,
+          error: error.message,
+        });
+      });
+    } catch (error) {
+      resolve({
+        success: false,
+        error: error.message,
+      });
+    }
+  });
+}
+
+// Cancel ongoing detection
+function cancelDetection() {
+  if (detectionProcess) {
+    try {
+      detectionProcess.kill('SIGTERM');
+      detectionProcess = null;
+    } catch (error) {
+      console.error('Error cancelling detection:', error);
+    }
+  }
+}
+
+module.exports = {
+  detectScenes,
+  cancelDetection,
+};

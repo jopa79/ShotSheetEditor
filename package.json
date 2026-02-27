@@ -1,0 +1,21 @@
+{
+  "name": "shotsheet-editor",
+  "version": "1.0.0",
+  "description": "Video scene detection and shot management tool",
+  "main": "src/main/index.js",
+  "scripts": {
+    "start": "electron .",
+    "build": "electron-builder",
+    "build:mac": "electron-builder --mac",
+    "build:win": "electron-builder --win"
+  },
+  "author": "JoPa",
+  "license": "MIT",
+  "dependencies": {
+    "archiver": "^7.0.1"
+  },
+  "devDependencies": {
+    "electron": "^34.5.8",
+    "electron-builder": "^26.8.1"
+  }
+}

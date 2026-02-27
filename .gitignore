@@ -1,0 +1,37 @@
+# Dependencies
+node_modules/
+
+# Build Output (electron-builder)
+dist/
+out/
+
+# Environment
+.env
+.env.local
+.env.*.local
+
+# macOS
+.DS_Store
+
+# Editor / IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Logs
+*.log
+npm-debug.log*
+
+# Temp / Cache
+.cache/
+tmp/
+temp/
+*.tmp
+
+# Electron-spezifisch
+*.asar
+
+# Projektdaten (extrahierte Frames etc.)
+*.shotsheet-temp/
