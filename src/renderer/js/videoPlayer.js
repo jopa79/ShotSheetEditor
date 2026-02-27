@@ -68,7 +68,8 @@ const VideoPlayer = (() => {
   };
 
   /**
-   * Extract thumbnails for all scenes
+   * Extract thumbnails for all scenes via batch extraction,
+   * then update scenes with the extracted file paths.
    */
   const _extractThumbsForScenes = async () => {
     const scenes = AppState.get('scenes');
@@ -76,12 +77,19 @@ const VideoPlayer = (() => {
 
     try {
       const videoPath = AppState.get('videoPath');
+      const projectPath = AppState.get('projectPath');
+      if (!projectPath) return;
 
-      // Batch extract thumbnails
-      for (const [idx, scene] of scenes.entries()) {
-        const thumbPath = await IPC.getThumb(videoPath, scene.startTime);
-        if (thumbPath) {
-          scenes[idx].thumbPath = thumbPath;
+      const outputDir = projectPath + '/thumbnails';
+
+      // Batch extract all frames via the correct IPC channel
+      const result = await IPC.extractFrames(videoPath, scenes, outputDir);
+      if (!result || !result.success || !result.frames) return;
+
+      // Update scenes with extracted thumbnail paths
+      for (const frame of result.frames) {
+        if (frame && frame.path != null && frame.index != null && scenes[frame.index]) {
+          scenes[frame.index].thumbPath = frame.path;
         }
       }
 

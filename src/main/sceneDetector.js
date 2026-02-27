@@ -13,6 +13,9 @@ function secondsToTimecode(seconds) {
 
 // Detect scenes in video
 function detectScenes(videoPath, threshold, onProgress) {
+  // Cancel any ongoing detection before starting a new one
+  cancelDetection();
+
   return new Promise((resolve) => {
     try {
       const ffmpegPath = ffmpegBridge.getFFmpegPath();
@@ -21,6 +24,9 @@ function detectScenes(videoPath, threshold, onProgress) {
         return;
       }
 
+      // Validate threshold to prevent injection into ffmpeg filter
+      const safeThreshold = Math.max(0.01, Math.min(1.0, parseFloat(threshold) || 0.3));
+
       const scenes = [];
       let totalDuration = 0;
       let processedTime = 0;
@@ -28,7 +34,7 @@ function detectScenes(videoPath, threshold, onProgress) {
       // ffmpeg command: detect scene changes
       const args = [
         '-i', videoPath,
-        '-vf', `select='gt(scene,${threshold})',showinfo`,
+        '-vf', `select='gt(scene,${safeThreshold})',showinfo`,
         '-vsync', 'vfr',
         '-f', 'null',
         '-',
@@ -64,7 +70,7 @@ function detectScenes(videoPath, threshold, onProgress) {
               const index = scenes.length;
               scenes.push({
                 index,
-                time,
+                startTime: time,
                 tc: secondsToTimecode(time),
               });
               processedTime = Math.max(processedTime, time);

@@ -102,7 +102,7 @@ async function extractFrames(videoPath, scenes, outputDir, thumbSize, onProgress
 
           const result = await extractFrame(
             videoPath,
-            task.scene.time,
+            task.scene.startTime,
             outputPath,
             thumbSize || THUMB_SIZE,
           );
@@ -111,7 +111,7 @@ async function extractFrames(videoPath, scenes, outputDir, thumbSize, onProgress
             frames[task.index] = {
               index: task.scene.index,
               path: outputPath,
-              timestamp: task.scene.time,
+              timestamp: task.scene.startTime,
               tc: task.scene.tc,
             };
           } else {

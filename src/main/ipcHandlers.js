@@ -1,4 +1,5 @@
 const { ipcMain } = require('electron');
+const path = require('path');
 const { IPC_CHANNELS } = require('../shared/constants');
 const videoManager = require('./videoManager');
 const sceneDetector = require('./sceneDetector');
@@ -57,12 +58,8 @@ function registerIpcHandlers(mainWindow) {
   ipcMain.handle(
     IPC_CHANNELS.SCENE_DETECT,
     wrapHandler(async (event, { videoPath, threshold }) => {
-      return new Promise((resolve) => {
-        sceneDetector.detectScenes(videoPath, threshold, (progress) => {
-          sendProgress(mainWindow, IPC_CHANNELS.SCENE_DETECT_PROGRESS, progress);
-        }).then((result) => {
-          resolve(result);
-        });
+      return sceneDetector.detectScenes(videoPath, threshold, (progress) => {
+        sendProgress(mainWindow, IPC_CHANNELS.SCENE_DETECT_PROGRESS, progress);
       });
     }),
   );
@@ -76,14 +73,8 @@ function registerIpcHandlers(mainWindow) {
   ipcMain.handle(
     IPC_CHANNELS.FRAME_EXTRACT_BATCH,
     wrapHandler(async (event, { videoPath, scenes, outputDir, thumbSize }) => {
-      return new Promise((resolve) => {
-        frameExtractor
-          .extractFrames(videoPath, scenes, outputDir, thumbSize, (progress) => {
-            sendProgress(mainWindow, IPC_CHANNELS.FRAME_EXTRACT_PROGRESS, progress);
-          })
-          .then((result) => {
-            resolve(result);
-          });
+      return frameExtractor.extractFrames(videoPath, scenes, outputDir, thumbSize, (progress) => {
+        sendProgress(mainWindow, IPC_CHANNELS.FRAME_EXTRACT_PROGRESS, progress);
       });
     }),
   );
@@ -93,10 +84,34 @@ function registerIpcHandlers(mainWindow) {
     IPC_CHANNELS.FRAME_GET_THUMB,
     wrapHandler(async (event, thumbPath) => {
       const fs = require('fs');
-      if (!fs.existsSync(thumbPath)) {
+      const os = require('os');
+
+      // Validate thumbPath is a string
+      if (!thumbPath || typeof thumbPath !== 'string') {
+        return { success: false, error: 'Invalid thumbnail path' };
+      }
+
+      // Validate file extension
+      const ext = path.extname(thumbPath).toLowerCase();
+      if (!['.jpg', '.jpeg', '.png'].includes(ext)) {
+        return { success: false, error: 'Invalid file type' };
+      }
+
+      // Resolve and validate path is within allowed directories
+      const resolved = path.resolve(thumbPath);
+      const homeDir = os.homedir();
+      const tmpDir = os.tmpdir();
+      const isAllowed =
+        resolved.startsWith(homeDir + path.sep) ||
+        resolved.startsWith(tmpDir + path.sep);
+      if (!isAllowed) {
+        return { success: false, error: 'Access denied: path outside allowed directories' };
+      }
+
+      if (!fs.existsSync(resolved)) {
         return { success: false, error: 'Thumbnail not found' };
       }
-      const data = fs.readFileSync(thumbPath);
+      const data = fs.readFileSync(resolved);
       const base64 = data.toString('base64');
       return { success: true, data: `data:image/jpeg;base64,${base64}` };
     }),
@@ -132,14 +147,8 @@ function registerIpcHandlers(mainWindow) {
     IPC_CHANNELS.EXPORT_SEQUENCE,
     wrapHandler(async (event, data) => {
       const { videoPath, startTime, endTime, outputPath, codec } = data;
-      return new Promise((resolve) => {
-        exportManager
-          .exportSequence(videoPath, startTime, endTime, outputPath, codec, (progress) => {
-            sendProgress(mainWindow, IPC_CHANNELS.EXPORT_SEQUENCE_PROGRESS, progress);
-          })
-          .then((result) => {
-            resolve(result);
-          });
+      return exportManager.exportSequence(videoPath, startTime, endTime, outputPath, codec, (progress) => {
+        sendProgress(mainWindow, IPC_CHANNELS.EXPORT_SEQUENCE_PROGRESS, progress);
       });
     }),
   );
@@ -148,15 +157,8 @@ function registerIpcHandlers(mainWindow) {
     IPC_CHANNELS.EXPORT_ZIP,
     wrapHandler(async (event, data) => {
       const { thumbnailPaths, outputPath } = data;
-      return new Promise((resolve) => {
-        exportManager
-          .exportZip(thumbnailPaths, outputPath, (progress) => {
-            // Reuse sequence progress channel for ZIP progress updates
-            sendProgress(mainWindow, IPC_CHANNELS.EXPORT_SEQUENCE_PROGRESS, progress);
-          })
-          .then((result) => {
-            resolve(result);
-          });
+      return exportManager.exportZip(thumbnailPaths, outputPath, (progress) => {
+        sendProgress(mainWindow, IPC_CHANNELS.EXPORT_SEQUENCE_PROGRESS, progress);
       });
     }),
   );

@@ -164,15 +164,12 @@ function saveProject(projectPath, data) {
       // Write to temp file
       fs.writeFileSync(tempPath, JSON.stringify(data, null, 2), 'utf8');
 
-      // Atomic rename
-      if (fs.existsSync(projectJsonPath)) {
-        fs.unlinkSync(projectJsonPath);
-      }
+      // Atomic rename (replaces target atomically on POSIX; works on Windows too)
       fs.renameSync(tempPath, projectJsonPath);
 
       return { success: true };
     } catch (error) {
-      // Fallback for Windows: direct write if rename fails
+      // Fallback for Windows: direct write if cross-device rename fails
       if (process.platform === 'win32') {
         fs.writeFileSync(projectJsonPath, JSON.stringify(data, null, 2), 'utf8');
         try {

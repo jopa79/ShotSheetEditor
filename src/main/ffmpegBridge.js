@@ -1,6 +1,6 @@
 const path = require('path');
 const fs = require('fs');
-const { execSync } = require('child_process');
+const { execFileSync } = require('child_process');
 const { app } = require('electron');
 
 // Get bundled ffmpeg path
@@ -18,8 +18,8 @@ function getBundledFFmpegPath() {
 // Get system ffmpeg via which/where
 function getSystemFFmpegPath() {
   try {
-    const cmd = process.platform === 'win32' ? 'where ffmpeg' : 'which ffmpeg';
-    const result = execSync(cmd, { encoding: 'utf8' }).trim();
+    const cmd = process.platform === 'win32' ? 'where' : 'which';
+    const result = execFileSync(cmd, ['ffmpeg'], { encoding: 'utf8' }).trim();
     return result || null;
   } catch (error) {
     return null;
@@ -96,8 +96,8 @@ function getFFprobePath() {
 
   // Try system PATH
   try {
-    const cmd = process.platform === 'win32' ? 'where ffprobe' : 'which ffprobe';
-    const result = execSync(cmd, { encoding: 'utf8' }).trim();
+    const cmd = process.platform === 'win32' ? 'where' : 'which';
+    const result = execFileSync(cmd, ['ffprobe'], { encoding: 'utf8' }).trim();
     if (result) {
       return result;
     }
@@ -124,8 +124,7 @@ function validateFFmpeg() {
     }
 
     // Get version
-    const versionCmd = `"${ffmpegPath}" -version`;
-    const versionOutput = execSync(versionCmd, { encoding: 'utf8' });
+    const versionOutput = execFileSync(ffmpegPath, ['-version'], { encoding: 'utf8' });
     const versionMatch = versionOutput.match(/ffmpeg version ([\w\d.]+)/);
     const version = versionMatch ? versionMatch[1] : 'unknown';
 
