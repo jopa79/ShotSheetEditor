@@ -9,6 +9,7 @@ const projectManager = require('./projectManager');
 const dialogManager = require('./dialogManager');
 const windowManager = require('./windowManager');
 const { getFFmpegPath, validateFFmpeg } = require('./ffmpegBridge');
+const proxyGenerator = require('./proxyGenerator');
 
 // Helper: Wrap handler with try/catch
 function wrapHandler(handler) {
@@ -78,6 +79,13 @@ function registerIpcHandlers(mainWindow) {
     wrapHandler(async (event, videoPath) => {
       validateString(videoPath, 'videoPath');
       const result = await videoManager.getVideoMeta(videoPath);
+      // Proxy-Entscheidung im Main-Prozess treffen (Single Source of Truth)
+      if (result?.success && result?.data) {
+        result.data.needsProxy = proxyGenerator.needsTranscoding(
+          result.data.codec,
+          videoPath,
+        );
+      }
       return result;
     }),
   );
@@ -260,6 +268,22 @@ function registerIpcHandlers(mainWindow) {
     } catch (error) {
       return { success: false, error: error.message };
     }
+  });
+
+  // Proxy transcoding
+  ipcMain.handle(
+    IPC_CHANNELS.PROXY_GENERATE,
+    wrapHandler(async (event, { videoPath, duration }) => {
+      const result = await proxyGenerator.generateProxy(videoPath, duration, (progress) => {
+        sendProgress(mainWindow, IPC_CHANNELS.PROXY_GENERATE_PROGRESS, progress);
+      });
+      return result;
+    }),
+  );
+
+  ipcMain.handle(IPC_CHANNELS.PROXY_CANCEL, () => {
+    proxyGenerator.cancelTranscoding();
+    return { success: true };
   });
 
   ipcMain.handle(IPC_CHANNELS.DIALOG_UNSAVED_CHANGES, async () => {

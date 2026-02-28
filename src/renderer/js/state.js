@@ -21,6 +21,8 @@ const AppState = (() => {
     gridSize: 200,
     projectPath: null,
     projectData: null,
+    isTranscoding: false,
+    transcodeProgress: 0,
   };
 
   // Listeners registry: key -> [callback, ...]
@@ -108,6 +110,8 @@ const AppState = (() => {
       gridSize: 200,
       projectPath: null,
       projectData: null,
+      isTranscoding: false,
+      transcodeProgress: 0,
     });
   };
 

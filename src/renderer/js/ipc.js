@@ -12,6 +12,10 @@ const IPC = (() => {
   return {
     // ===== Invoke methods (Renderer -> Main, with response) =====
 
+    // Proxy
+    generateProxy: (videoPath, duration) => api.generateProxy?.(videoPath, duration),
+    cancelProxy: () => api.cancelProxy?.(),
+
     // Dialogs
     openVideoDialog: () => api.openVideoDialog?.(),
     unsavedChangesDialog: () => api.unsavedChangesDialog?.(),
@@ -49,6 +53,7 @@ const IPC = (() => {
     // ===== Listener methods (Main -> Renderer) =====
     // Each returns a cleanup function. Call it on teardown.
 
+    onProxyProgress: (callback) => api.onProxyProgress?.(callback),
     onDetectProgress: (callback) => api.onDetectProgress?.(callback),
     onExtractProgress: (callback) => api.onExtractProgress?.(callback),
     onExportProgress: (callback) => api.onExportProgress?.(callback),

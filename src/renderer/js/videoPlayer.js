@@ -10,33 +10,57 @@ const VideoPlayer = (() => {
 
   /**
    * Load video file
-   * @param {string} filePath - Path to video file
+   * Gibt ein Promise zurück: resolved bei loadedmetadata, rejected bei Fehler.
+   * Damit kann der Aufrufer bei Fehler auf Proxy-Transcoding fallbacken.
+   * @param {string} filePath - Pfad zur Videodatei
+   * @returns {Promise<void>}
    */
-  const loadVideo = async (filePath) => {
-    if (!_videoElement) return;
+  const loadVideo = (filePath) => {
+    return new Promise((resolve, reject) => {
+      if (!_videoElement) {
+        reject(new Error('Video element not found'));
+        return;
+      }
 
-    try {
       // Convert file path to file:// protocol URL
       let videoUrl = filePath;
       if (!videoUrl.startsWith('file://') && !videoUrl.startsWith('app://')) {
         videoUrl = 'file://' + (filePath.startsWith('/') ? '' : '/') + filePath;
       }
 
+      const onLoaded = () => {
+        removeLoadListeners();
+        _extractThumbsForScenes();
+        resolve();
+      };
+
+      const onError = () => {
+        removeLoadListeners();
+        const err = _videoElement.error;
+        console.error('VideoPlayer: loadVideo error', err?.message || 'unknown');
+        reject(new Error(err?.message || 'Video konnte nicht geladen werden'));
+      };
+
+      // Timeout: Wenn nach 5s weder loadedmetadata noch error kommt,
+      // gilt das Video als nicht abspielbar (z.B. Unsupported pixel format)
+      const timeout = setTimeout(() => {
+        removeLoadListeners();
+        console.error('VideoPlayer: loadVideo timeout — vermutlich inkompatibles Format');
+        reject(new Error('Video-Load Timeout — Format nicht abspielbar'));
+      }, 5000);
+
+      function removeLoadListeners() {
+        clearTimeout(timeout);
+        _videoElement.removeEventListener('loadedmetadata', onLoaded);
+        _videoElement.removeEventListener('error', onError);
+      }
+
+      _videoElement.addEventListener('loadedmetadata', onLoaded, { once: true });
+      _videoElement.addEventListener('error', onError, { once: true });
+
       _videoElement.src = videoUrl;
       _videoElement.load();
-
-      // Fetch thumbnails for all scenes once video is loaded
-      _videoElement.addEventListener(
-        'loadedmetadata',
-        () => {
-          _extractThumbsForScenes();
-        },
-        { once: true }
-      );
-    } catch (err) {
-      console.error('VideoPlayer: loadVideo failed', err);
-      showToast('Failed to load video', 'error');
-    }
+    });
   };
 
   /**
@@ -196,14 +220,9 @@ const VideoPlayer = (() => {
       }
     });
 
-    // State listener for videoPath changes
-    const cleanupVideoPath = AppState.onStateChange('videoPath', (path) => {
-      if (path) {
-        loadVideo(path);
-      }
-    });
-
-    _stateListeners = [cleanupCurrentIdx, cleanupVideoPath];
+    // videoPath-Listener entfernt: loadVideo() wird explizit vom Toolbar-Flow aufgerufen,
+    // um Doppel-Load zu vermeiden (Proxy-Pfad vs. Original-Pfad)
+    _stateListeners = [cleanupCurrentIdx];
   };
 
   /**

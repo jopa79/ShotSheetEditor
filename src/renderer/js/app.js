@@ -166,7 +166,7 @@ const App = (() => {
   };
 
   /**
-   * Handle drag and drop file drops
+   * Handle drag and drop file drops — delegiert an Toolbar.openVideoFromPath
    */
   let _dragDropCleanup = null;
 
@@ -189,37 +189,16 @@ const App = (() => {
 
       const files = e.dataTransfer.files;
       if (files.length > 0) {
-        const file = files[0];
-        const filePath = file.path;
-
-        // Validate file extension against supported formats
-        const ext = '.' + filePath.split('.').pop().toLowerCase();
-        const SUPPORTED_FORMATS = ['.mp4', '.mov', '.mkv', '.avi', '.mxf', '.webm'];
-        if (!SUPPORTED_FORMATS.includes(ext)) {
-          showToast(`Unsupported format. Supported: ${SUPPORTED_FORMATS.join(', ')}`, 'warning');
-          return;
-        }
-
-        try {
-          const meta = await IPC.getVideoMeta(filePath);
-          if (meta) {
-            AppState.setState({
-              videoPath: filePath,
-              videoMeta: meta,
-              scenes: [],
-              selectedIndices: [],
-              favoriteIndices: [],
-              deletedIndices: [],
-              currentShotIdx: -1,
-              isDirty: true,
-            });
-
-            // VideoPlayer.loadVideo is triggered by onStateChange('videoPath')
-            showToast('Video loaded successfully', 'success');
+        const filePath = files[0].path;
+        if (filePath) {
+          // Dateiendung prüfen bevor der volle Flow gestartet wird
+          const ext = '.' + filePath.split('.').pop().toLowerCase();
+          const SUPPORTED_FORMATS = ['.mp4', '.mov', '.mkv', '.avi', '.mxf', '.webm'];
+          if (!SUPPORTED_FORMATS.includes(ext)) {
+            showToast(`Unsupported format. Supported: ${SUPPORTED_FORMATS.join(', ')}`, 'warning');
+            return;
           }
-        } catch (err) {
-          console.error('Drag drop failed:', err);
-          showToast('Failed to load video file', 'error');
+          Toolbar.openVideoFromPath(filePath);
         }
       }
     };
@@ -267,10 +246,59 @@ const App = (() => {
   };
 
   /**
+   * Progress-Overlay für Transcoding steuern
+   */
+  const _setupTranscodingUI = () => {
+    const overlay = document.querySelector('#progressOverlay');
+    const title = document.querySelector('#progressTitle');
+    const barFill = document.querySelector('#progressBarFill');
+    const text = document.querySelector('#progressText');
+    const cancelBtn = document.querySelector('#btnCancelProgress');
+
+    // Cancel-Button: Proxy-Transcoding abbrechen
+    if (cancelBtn) {
+      cancelBtn.addEventListener('click', async () => {
+        if (AppState.get('isTranscoding')) {
+          await IPC.cancelProxy();
+          AppState.setState({ isTranscoding: false, transcodeProgress: 0 });
+          showToast('Transcoding abgebrochen', 'info');
+        }
+      });
+    }
+
+    // Overlay ein/ausblenden je nach Transcoding-Status
+    AppState.onStateChange('isTranscoding', (isTranscoding) => {
+      if (!overlay) return;
+      if (isTranscoding) {
+        if (title) title.textContent = 'Transcoding Proxy...';
+        if (barFill) barFill.style.width = '0%';
+        if (text) text.textContent = '0%';
+        overlay.style.display = '';
+      } else {
+        overlay.style.display = 'none';
+      }
+    });
+
+    // Fortschrittsbalken aktualisieren
+    AppState.onStateChange('transcodeProgress', (pct) => {
+      if (!AppState.get('isTranscoding')) return;
+      if (barFill) barFill.style.width = `${pct}%`;
+      if (text) text.textContent = `${pct}%`;
+    });
+  };
+
+  /**
    * Set up IPC listeners
    */
   const _setupIpcListeners = () => {
     const cleanups = [];
+
+    // Proxy-Progress Listener — progress kommt als {progress: number} Objekt
+    const proxyProgressCleanup = IPC.onProxyProgress?.((progress) => {
+      const pct = progress?.progress ?? progress;
+      AppState.setState({ transcodeProgress: pct });
+    });
+    if (proxyProgressCleanup) cleanups.push(proxyProgressCleanup);
 
     // Detect progress listener
     const detectProgressCleanup = IPC.onDetectProgress?.((progress) => {
@@ -403,6 +431,9 @@ const App = (() => {
 
     // Set up drag and drop
     _setupDragDrop();
+
+    // Set up transcoding progress UI
+    _setupTranscodingUI();
 
     // Set up IPC listeners
     _setupIpcListeners();

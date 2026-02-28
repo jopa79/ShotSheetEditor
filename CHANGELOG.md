@@ -2,18 +2,30 @@
 
 All notable changes to this project will be documented in this file.
 
-The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
+The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
+and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
 
-### Security
-- Replace `eval()` with safe `parseFraction()` for ffprobe frame rate parsing (#16)
-- Replace `execSync` with `execFileSync` to prevent shell injection (#18)
-- Add path traversal protection to FRAME_GET_THUMB handler (#17)
-- Add Content-Security-Policy meta tag (#13)
-- Replace `innerHTML` with `textContent` to prevent XSS (#13)
-- Add IPC input validation for all handlers (strings, numbers, arrays, thumbSize) (#28, #46)
-- Add `will-navigate` prevention and popup handler in Electron window (#29)
+### Added
+- FFmpeg Transcoding Proxy: Videos mit inkompatiblen Codecs (ProRes, HEVC, MXF, DivX) werden automatisch zu H.264 720p transkodiert
+- Proxy-Caching: Bereits transkodierte Videos werden per MD5-Hash wiederverwendet
+- Progress-Overlay mit Cancel-Button während Transcoding
+- Drag & Drop nutzt jetzt den gleichen Codec-Check-Flow wie "Open Video"
+- Automatische Proxy-Bereinigung beim Beenden der App
+- Drag & drop cleanup function to prevent memory leaks (#11)
+- `SelectionManager.cleanup()` for state listener removal (#11)
+- README.md with setup instructions and architecture overview (#15)
+- This CHANGELOG.md (#15)
+
+### Changed
+- Video-Ladeflow prüft jetzt Codec-Kompatibilität bevor das Video im Player geladen wird
+- Drag & Drop delegiert an `Toolbar.openVideoFromPath()` statt eigener Logik
+- VideoPlayer: `videoPath` State-Listener entfernt (verhindert Doppel-Load bei Proxy-Verwendung)
+- Replace `readFileSync` with async `fs.promises.readFile` in FRAME_GET_THUMB (#50)
+- Deduplicate `formatTimecode` into shared `utils.js` (renderer) and `constants.js` (main) (#48)
+- Optimize `getVisibleScenes` from O(n²) to O(n) using Set (#52)
+- Cancel scene detection process on app quit (#14)
 
 ### Fixed
 - Fix `scene.time` → `scene.startTime` property name across all modules (#3)
@@ -32,14 +44,16 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - Cancel ongoing scene detection before starting new one (#43)
 - Validate drag & drop file extensions against supported formats (#12)
 
-### Changed
-- Replace `readFileSync` with async `fs.promises.readFile` in FRAME_GET_THUMB (#50)
-- Deduplicate `formatTimecode` into shared `utils.js` (renderer) and `constants.js` (main) (#48)
-- Optimize `getVisibleScenes` from O(n²) to O(n) using Set (#52)
-- Cancel scene detection process on app quit (#14)
+### Security
+- Replace unsafe `parseFraction()` for ffprobe frame rate parsing (#16)
+- Replace `execSync` with `execFileSync` to prevent shell injection (#18)
+- Add path traversal protection to FRAME_GET_THUMB handler (#17)
+- Add Content-Security-Policy meta tag (#13)
+- Replace `innerHTML` with `textContent` to prevent XSS (#13)
+- Add IPC input validation for all handlers (strings, numbers, arrays, thumbSize) (#28, #46)
+- Add `will-navigate` prevention and popup handler in Electron window (#29)
+
+## [1.0.0] - 2026-02-27
 
 ### Added
-- Drag & drop cleanup function to prevent memory leaks (#11)
-- `SelectionManager.cleanup()` for state listener removal (#11)
-- README.md with setup instructions and architecture overview (#15)
-- This CHANGELOG.md (#15)
+- Initiales Release

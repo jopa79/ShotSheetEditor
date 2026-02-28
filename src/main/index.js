@@ -7,6 +7,7 @@ const {
 const path = require('path');
 const windowManager = require('./windowManager');
 const ipcHandlers = require('./ipcHandlers');
+const proxyGenerator = require('./proxyGenerator');
 const { IPC_CHANNELS, QUIT_TIMEOUT_MS } = require('../shared/constants');
 
 let mainWindow;
@@ -127,6 +128,16 @@ function buildMenu() {
           accelerator: 'CmdOrCtrl+0',
           click: () => sendMenuAction('view:zoomReset'),
         },
+        { type: 'separator' },
+        {
+          label: 'Toggle DevTools',
+          accelerator: 'CmdOrCtrl+Shift+I',
+          click: () => {
+            if (mainWindow && !mainWindow.isDestroyed()) {
+              mainWindow.webContents.toggleDevTools();
+            }
+          },
+        },
       ],
     },
     {
@@ -153,6 +164,9 @@ function buildMenu() {
 let isQuitting = false;
 
 app.on('before-quit', (event) => {
+  // Laufendes Transcoding sofort abbrechen
+  proxyGenerator.cancelTranscoding();
+
   if (isQuitting) return; // Already confirmed, allow quit
 
   if (mainWindow && !mainWindow.isDestroyed()) {
@@ -207,11 +221,12 @@ app.on('activate', () => {
 // App lifecycle
 app.on('ready', onReady);
 
-// Cleanup on quit
+// Cleanup on quit — Proxy-Dateien aufräumen
 app.on('quit', () => {
   if (quitTimer) {
     clearTimeout(quitTimer);
   }
+  proxyGenerator.cleanupProxies();
 });
 
 // Expose sendToRenderer for handlers

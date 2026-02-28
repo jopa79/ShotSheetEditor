@@ -16,50 +16,105 @@ const Toolbar = (() => {
   let _stateListeners = [];
 
   /**
-   * Handle Open Video button click
+   * Handle Open Video button click — öffnet Dialog, delegiert an openVideoFromPath
    */
   const openVideo = async () => {
     try {
       const result = await IPC.openVideoDialog();
       if (!result || !result.success || !result.path) {
-        return; // User cancelled or error
+        return;
       }
-
-      const filePath = result.path;
-
-      try {
-        // Get video metadata
-        const meta = await IPC.getVideoMeta(filePath);
-        if (!meta || !meta.success) {
-          showToast('Failed to read video metadata', 'error');
-          return;
-        }
-
-        // Load into state
-        AppState.setState({
-          videoPath: filePath,
-          videoMeta: meta,
-          scenes: [],
-          selectedIndices: [],
-          favoriteIndices: [],
-          deletedIndices: [],
-          currentShotIdx: -1,
-          projectPath: null,
-          isDirty: true,
-        });
-
-        UndoRedo.clear();
-        // VideoPlayer.loadVideo is triggered by onStateChange('videoPath')
-        showToast('Video loaded successfully', 'success');
-
-        // Auto-detect scenes
-        _handleDetectScenes();
-      } catch (err) {
-        console.error('Toolbar: Failed to load video', err);
-        showToast('Failed to load video', 'error');
-      }
+      await openVideoFromPath(result.path);
     } catch (err) {
       console.error('Toolbar: openVideoDialog failed', err);
+    }
+  };
+
+  /**
+   * Generiert einen Proxy und lädt ihn im Player
+   * @param {string} filePath - Original-Videopfad
+   * @param {number} duration - Video-Dauer in Sekunden
+   */
+  const _generateAndLoadProxy = async (filePath, duration) => {
+    AppState.setState({ isTranscoding: true, transcodeProgress: 0 });
+
+    const result = await IPC.generateProxy(filePath, duration);
+
+    // Prüfen ob zwischenzeitlich ein anderes Video geöffnet wurde
+    if (AppState.get('videoPath') !== filePath) {
+      AppState.setState({ isTranscoding: false, transcodeProgress: 0 });
+      return;
+    }
+
+    AppState.setState({ isTranscoding: false, transcodeProgress: 0 });
+
+    if (result && result.success) {
+      await VideoPlayer.loadVideo(result.proxyPath);
+      const cached = result.cached ? ' (cached)' : '';
+      showToast(`Proxy loaded${cached}`, 'success');
+      _handleDetectScenes();
+    } else {
+      const errorMsg = result?.error || 'Transcoding failed';
+      showToast(errorMsg, 'error');
+    }
+  };
+
+  /**
+   * Lädt ein Video: Metadaten holen, Codec prüfen, ggf. Proxy generieren
+   * Wird von openVideo() und Drag & Drop aufgerufen
+   * @param {string} filePath - Absoluter Pfad zum Video
+   */
+  const openVideoFromPath = async (filePath) => {
+    try {
+      // Laufendes Transcoding abbrechen wenn neues Video geöffnet wird
+      if (AppState.get('isTranscoding')) {
+        await IPC.cancelProxy();
+        AppState.setState({ isTranscoding: false, transcodeProgress: 0 });
+      }
+
+      // Metadaten abrufen
+      const meta = await IPC.getVideoMeta(filePath);
+      if (!meta || !meta.success) {
+        showToast('Failed to read video metadata', 'error');
+        return;
+      }
+
+      // State zurücksetzen für neues Video
+      AppState.setState({
+        videoPath: filePath,
+        videoMeta: meta,
+        scenes: [],
+        selectedIndices: [],
+        favoriteIndices: [],
+        deletedIndices: [],
+        currentShotIdx: -1,
+        projectPath: null,
+        isDirty: true,
+      });
+      UndoRedo.clear();
+
+      // Codec-Check: Main-Prozess entscheidet ob Proxy nötig ist
+      const duration = meta.data?.duration || 0;
+
+      if (!meta.data?.needsProxy) {
+        try {
+          await VideoPlayer.loadVideo(filePath);
+          showToast('Video loaded successfully', 'success');
+          _handleDetectScenes();
+          return;
+        } catch (loadErr) {
+          // Chromium kann das Video trotz kompatiblem Codec nicht abspielen
+          // (z.B. Unsupported pixel format) → Fallback auf Proxy
+          console.warn('Toolbar: Direct load failed, falling back to proxy:', loadErr.message);
+        }
+      }
+
+      // Proxy nötig → Transcoding starten
+      await _generateAndLoadProxy(filePath, duration);
+    } catch (err) {
+      console.error('Toolbar: Failed to load video', err);
+      AppState.setState({ isTranscoding: false, transcodeProgress: 0 });
+      showToast('Failed to load video', 'error');
     }
   };
 
@@ -374,6 +429,7 @@ const Toolbar = (() => {
     init,
     cleanup,
     openVideo,
+    openVideoFromPath,
     openProject,
     saveProject,
     saveProjectAs,

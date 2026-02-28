@@ -43,6 +43,11 @@ const IPC_CHANNELS = {
 
   // App lifecycle (Main → Renderer)
   APP_BEFORE_QUIT: 'app:beforeQuit',
+
+  // Proxy transcoding
+  PROXY_GENERATE: 'proxy:generate',
+  PROXY_GENERATE_PROGRESS: 'proxy:generateProgress',
+  PROXY_CANCEL: 'proxy:cancel',
 };
 
 // Window defaults
@@ -83,6 +88,17 @@ const EXPORT_CODECS = {
   },
 };
 
+// Proxy-Transkodierung: Codecs die Chromium nativ abspielen kann
+const PROXY_CONFIG = {
+  BROWSER_COMPATIBLE_CODECS: ['h264', 'vp8', 'vp9', 'av1'],
+  BROWSER_COMPATIBLE_CONTAINERS: ['.mp4', '.webm'],
+  VIDEO_FILTER: 'scale=-2:720',
+  PIX_FMT: 'yuv420p', // Chromium unterstützt nur yuv420p — ProRes/HEVC liefern oft 422/10bit
+  PRESET: 'ultrafast',
+  CRF: '28',
+  TEMP_DIR_NAME: 'shotsheet-proxies',
+};
+
 // Convert seconds to timecode HH:MM:SS.mmm (for ffmpeg/main-process use)
 function secondsToTimecode(seconds) {
   const hours = Math.floor(seconds / 3600);
@@ -104,6 +120,7 @@ module.exports = {
   THUMB_SIZE,
   SUPPORTED_FORMATS,
   EXPORT_CODECS,
+  PROXY_CONFIG,
   AUTO_SAVE_INTERVAL_MS,
   QUIT_TIMEOUT_MS,
   secondsToTimecode,

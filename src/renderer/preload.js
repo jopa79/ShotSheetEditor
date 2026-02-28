@@ -35,6 +35,10 @@ contextBridge.exposeInMainWorld('electronAPI', {
   getVersion: () => ipcRenderer.invoke('app:getVersion'),
   confirmQuit: () => ipcRenderer.invoke('app:confirmQuit'),
 
+  // Proxy
+  generateProxy: (videoPath, duration) => ipcRenderer.invoke('proxy:generate', { videoPath, duration }),
+  cancelProxy: () => ipcRenderer.invoke('proxy:cancel'),
+
   // Dialogs
   openVideoDialog: () => ipcRenderer.invoke('dialog:openVideo'),
   unsavedChangesDialog: () => ipcRenderer.invoke('dialog:unsavedChanges'),
@@ -52,6 +56,12 @@ contextBridge.exposeInMainWorld('electronAPI', {
     const handler = (_event, data) => callback(data);
     ipcRenderer.on('frame:extractProgress', handler);
     return () => ipcRenderer.removeListener('frame:extractProgress', handler);
+  },
+
+  onProxyProgress: (callback) => {
+    const handler = (_event, data) => callback(data);
+    ipcRenderer.on('proxy:generateProgress', handler);
+    return () => ipcRenderer.removeListener('proxy:generateProgress', handler);
   },
 
   onExportProgress: (callback) => {
