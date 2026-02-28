@@ -212,7 +212,18 @@
   background-color: var(--amber-dim);
 }
 
-/* Thumbnail container */
+.shot-card.deleted {
+  opacity: 0.4;
+  filter: grayscale(0.8);
+  border-color: var(--red);
+}
+
+.shot-card.deleted:hover {
+  opacity: 0.6;
+  filter: grayscale(0.5);
+}
+
+/* Thumbnail container — Höhe via gridAutoRows (JS-berechnet per Seitenverhältnis) */
 .shot-card-thumb {
   flex: 1;
   position: relative;
@@ -223,7 +234,7 @@
 .shot-card-thumb img {
   width: 100%;
   height: 100%;
-  object-fit: cover;
+  object-fit: contain;
   transition: opacity var(--transition-fast);
 }
 
@@ -586,6 +597,127 @@
   flex: 0 0 60px;
   color: var(--text-2);
   font-family: var(--font-mono);
+}
+
+/* ============================================================================
+   COLLECTIONS (Info Panel)
+   ============================================================================ */
+
+.collection-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: var(--sp-sm);
+}
+
+.collection-add-btn {
+  padding: 2px var(--sp-md);
+  font-size: var(--fs-micro);
+  font-weight: 600;
+  color: var(--accent);
+  background-color: transparent;
+  border: 1px solid var(--accent);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.collection-add-btn:hover {
+  background-color: var(--accent-glow);
+}
+
+.collection-empty {
+  font-size: var(--fs-secondary);
+  color: var(--text-2);
+  text-align: center;
+  padding: var(--sp-lg) 0;
+}
+
+.collection-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-xs);
+}
+
+.collection-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--sp-sm) var(--sp-md);
+  background-color: var(--bg-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.collection-item:hover {
+  border-color: var(--border-bright);
+  background-color: var(--bg-3);
+}
+
+.collection-item.active {
+  border-color: var(--accent);
+  background-color: var(--accent-glow);
+}
+
+.collection-item-info {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-md);
+  flex: 1;
+  min-width: 0;
+}
+
+.collection-item-name {
+  font-size: var(--fs-secondary);
+  font-weight: 500;
+  color: var(--text-0);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.collection-item-count {
+  font-size: var(--fs-micro);
+  font-family: var(--font-mono);
+  color: var(--text-2);
+  flex-shrink: 0;
+}
+
+.collection-item-actions {
+  display: none;
+  gap: var(--sp-xs);
+  flex-shrink: 0;
+}
+
+.collection-item:hover .collection-item-actions {
+  display: flex;
+}
+
+.collection-action-btn {
+  padding: 2px var(--sp-sm);
+  font-size: var(--fs-micro);
+  color: var(--text-1);
+  background-color: transparent;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+}
+
+.collection-action-btn:hover {
+  background-color: var(--bg-4);
+  border-color: var(--border-bright);
+}
+
+.collection-action-btn.danger {
+  color: var(--red);
+}
+
+.collection-action-btn.danger:hover {
+  background-color: var(--red-dim);
+  border-color: var(--red);
 }
 
 /* ============================================================================
