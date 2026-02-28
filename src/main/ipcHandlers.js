@@ -227,6 +227,10 @@ function registerIpcHandlers(mainWindow) {
   ipcMain.handle(IPC_CHANNELS.THEME_TOGGLE, () => {
     try {
       const theme = windowManager.toggleTheme();
+      // Renderer informieren damit CSS-Klasse aktualisiert wird
+      if (mainWindow && !mainWindow.isDestroyed()) {
+        mainWindow.webContents.send(IPC_CHANNELS.THEME_CHANGED, theme);
+      }
       return { success: true, theme };
     } catch (error) {
       return { success: false, error: error.message };

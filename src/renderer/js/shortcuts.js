@@ -35,7 +35,7 @@ const Shortcuts = (() => {
       // Cmd/Ctrl+O: Open Video
       case _isCmdCtrl(event) && event.key === 'o':
         event.preventDefault();
-        document.querySelector('[data-action="open-video"]')?.click();
+        Toolbar.openVideo();
         break;
 
       // Cmd/Ctrl+Z: Undo
