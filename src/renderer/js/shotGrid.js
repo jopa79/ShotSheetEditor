@@ -55,7 +55,9 @@ const ShotGrid = (() => {
     const thumb = document.createElement('div');
     thumb.className = 'shot-card-thumb';
     const img = document.createElement('img');
-    img.src = scene.thumbPath || 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="200" height="112"%3E%3Crect fill="%23333" width="200" height="112"/%3E%3C/svg%3E';
+    img.src = scene.thumbPath
+      ? 'file://' + scene.thumbPath
+      : 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="200" height="112"%3E%3Crect fill="%23333" width="200" height="112"/%3E%3C/svg%3E';
     img.loading = 'lazy';
     img.alt = `Shot ${idx + 1}`;
     thumb.appendChild(img);

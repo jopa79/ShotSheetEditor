@@ -17,6 +17,7 @@ function extractFrame(videoPath, timestamp, outputPath, thumbSize) {
       }
 
       const args = [
+        '-y', // Existierende Dateien überschreiben
         '-ss', String(timestamp),
         '-i', videoPath,
         '-vframes', '1',
