@@ -35,3 +35,6 @@ temp/
 
 # Projektdaten (extrahierte Frames etc.)
 *.shotsheet-temp/
+
+# Lokales Kanban-Board
+.kaban/
