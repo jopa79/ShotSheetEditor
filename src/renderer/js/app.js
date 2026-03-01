@@ -334,6 +334,8 @@ const App = (() => {
         progress.newScenes.forEach((scene) => {
           ShotGrid.appendScene(scene, scene.index);
         });
+        // Thumbnails sofort progressiv extrahieren — nicht auf Detection-Ende warten
+        ThumbnailQueue.enqueue(progress.newScenes);
       }
     });
     if (detectProgressCleanup) cleanups.push(detectProgressCleanup);

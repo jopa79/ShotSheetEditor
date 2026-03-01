@@ -12,6 +12,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - ShotGrid: `_updateCardClasses()` für differential CSS-Updates ohne DOM-Rebuild (#68, #82)
 - InfoPanel: `AbortController`-Pattern stellt sicher dass DOM-Listener bei re-render bereinigt werden (#152, #153)
 - shotGrid `updateThumbnail`: Pfad-Validierung gegen gefährliche Protokoll-Injections (#119)
+- Progressive Thumbnails: Thumbnails erscheinen sofort nach Erkennung einer Szene — Queue-basierte Extraktion parallel zur Scene Detection (ThumbnailQueue)
 - Progressive Thumbnails: Thumbnails erscheinen einzeln während der Extraktion statt erst am Ende
 - Collections: Szenen in benannte Sammlungen gruppieren, filtern und verwalten (Scene Info Panel)
 - Selection → Collection: Selektierte Shots per Button oder Context Menu einer Collection zuweisen

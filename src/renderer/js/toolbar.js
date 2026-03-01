@@ -166,24 +166,29 @@ const Toolbar = (() => {
         currentShotIdx: -1,
       });
       UndoRedo.clear();
+      // Queue leeren — frische Extraktion für neue Detection
+      ThumbnailQueue.clear();
 
       const result = await IPC.detectScenes(videoPath, threshold);
       const scenes = result?.scenes || result;
 
       if (scenes && Array.isArray(scenes)) {
-        // NACH Detection: finalen State setzen — triggert einmalig renderGrid() zur Synchronisation (rt-007)
+        // NACH Detection: bereits extrahierte thumbPaths aus Queue in Szenen mergen
+        const thumbPaths = ThumbnailQueue.getThumbPaths();
+        const scenesWithThumbs = scenes.map((scene) => {
+          const tp = thumbPaths.get(scene.index);
+          return tp ? { ...scene, thumbPath: tp } : scene;
+        });
+
+        // Finalen State setzen — triggert einmalig renderGrid() zur Synchronisation (rt-007)
         AppState.setState({
-          scenes,
-          currentShotIdx: scenes.length > 0 ? 0 : -1,
+          scenes: scenesWithThumbs,
+          currentShotIdx: scenesWithThumbs.length > 0 ? 0 : -1,
           isDirty: true, // Scene Detection macht Projekt dirty (Fix #98/#130)
         });
 
         showToast(`Detected ${scenes.length} scenes`, 'success');
-
-        // Thumbnails extrahieren nachdem Szenen im State gesetzt sind
-        if (scenes.length > 0) {
-          VideoPlayer.extractThumbs();
-        }
+        // VideoPlayer.extractThumbs() entfällt — Queue übernimmt progressive Extraktion
       } else {
         showToast('No scenes detected', 'warning');
       }
