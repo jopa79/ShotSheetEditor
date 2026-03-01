@@ -26,6 +26,8 @@ function detectScenes(videoPath, threshold, onProgress) {
       const scenes = [];
       let totalDuration = 0;
       let processedTime = 0;
+      // Zählt bereits gemeldete Szenen — sendet nur neu erkannte Szenen im Progress (rt-002)
+      let lastReportedCount = 0;
 
       // ffmpeg command: detect scene changes
       const args = [
@@ -89,14 +91,17 @@ function detectScenes(videoPath, threshold, onProgress) {
           }
         }
 
-        // Report progress
+        // Report progress — neu erkannte Szenen mitsenden (rt-002)
         if (totalDuration > 0 && onProgress) {
           const progress = Math.min((processedTime / totalDuration) * 100, 100);
+          const newScenes = scenes.slice(lastReportedCount);
+          lastReportedCount = scenes.length;
           onProgress({
             progress,
             processedTime,
             totalDuration,
             scenesDetected: scenes.length,
+            newScenes,
           });
         }
       });

@@ -152,19 +152,28 @@ const Toolbar = (() => {
     const threshold = AppState.get('threshold');
 
     try {
-      AppState.setState({ isDetecting: true, detectProgress: 0 });
+      // VOR Detection: Szenen und Selektionen leeren — Grid zeigt sofort Empty State (rt-007)
+      AppState.setState({
+        isDetecting: true,
+        detectProgress: 0,
+        detectingSceneCount: 0,
+        scenes: [],
+        selectedIndices: [],
+        favoriteIndices: [],
+        deletedIndices: [],
+        collections: [],
+        activeCollectionId: null,
+        currentShotIdx: -1,
+      });
+      UndoRedo.clear();
 
       const result = await IPC.detectScenes(videoPath, threshold);
       const scenes = result?.scenes || result;
 
       if (scenes && Array.isArray(scenes)) {
+        // NACH Detection: finalen State setzen — triggert einmalig renderGrid() zur Synchronisation (rt-007)
         AppState.setState({
           scenes,
-          selectedIndices: [],
-          favoriteIndices: [],
-          deletedIndices: [],
-          collections: [],
-          activeCollectionId: null,
           currentShotIdx: scenes.length > 0 ? 0 : -1,
           isDirty: true, // Scene Detection macht Projekt dirty (Fix #98/#130)
         });
@@ -182,7 +191,7 @@ const Toolbar = (() => {
       console.error('Toolbar: detectScenes failed', err);
       showToast('Scene detection failed', 'error');
     } finally {
-      AppState.setState({ isDetecting: false, detectProgress: 0 });
+      AppState.setState({ isDetecting: false, detectProgress: 0, detectingSceneCount: 0 });
     }
   };
 
@@ -448,9 +457,19 @@ const Toolbar = (() => {
       }
     });
 
+    // Live-Counter im Button während Detection (rt-004)
+    const detectCountCleanup = AppState.onStateChange?.('detectingSceneCount', (count) => {
+      if (_detectButton && AppState.get('isDetecting') && count > 0) {
+        _detectButton.querySelector('span').textContent = `Detecting... (${count})`;
+      }
+    });
+
     // Alle State-Listener sammeln — filterModeCleanup wurde bereits via push() hinzugefügt
     if (isDetectingCleanup) {
       _stateListeners.push(isDetectingCleanup);
+    }
+    if (detectCountCleanup) {
+      _stateListeners.push(detectCountCleanup);
     }
 
     // Initial states

@@ -416,11 +416,29 @@ const ShotGrid = (() => {
     }
   };
 
+  /**
+   * Einzelne Szene ans Grid anhängen ohne Full-Re-Render (rt-005)
+   * Wird während Scene Detection progressiv aufgerufen
+   * @param {object} scene - Szenen-Objekt (index, startTime, tc)
+   * @param {number} originalIdx - Originalindex im scenes-Array
+   */
+  const appendScene = (scene, originalIdx) => {
+    if (!_gridElement) return;
+    // Empty-State ausblenden sobald erste Karte kommt
+    if (_emptyStateElement) _emptyStateElement.style.display = 'none';
+    const favoriteSet = new Set(AppState.get('favoriteIndices'));
+    const selectedSet = new Set(AppState.get('selectedIndices'));
+    const deletedSet = new Set(AppState.get('deletedIndices'));
+    const card = _createShotCard(scene, originalIdx, favoriteSet, selectedSet, deletedSet);
+    _gridElement.appendChild(card);
+  };
+
   return {
     init,
     cleanup,
     renderGrid,
     updateThumbnail,
+    appendScene,
     setGridSize,
     zoomIn,
     zoomOut,

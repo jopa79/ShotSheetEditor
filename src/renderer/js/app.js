@@ -323,9 +323,18 @@ const App = (() => {
     });
     if (proxyProgressCleanup) cleanups.push(proxyProgressCleanup);
 
-    // Detect progress listener
+    // Detect progress listener — neue Szenen progressiv ins Grid anhängen (rt-003)
     const detectProgressCleanup = IPC.onDetectProgress?.((progress) => {
-      AppState.setState({ detectProgress: progress });
+      AppState.setState({
+        detectProgress: progress?.progress ?? progress,
+        detectingSceneCount: progress?.scenesDetected ?? 0,
+      });
+      // Neu erkannte Szenen ohne State-Update direkt anhängen (vermeidet Full-Re-Render)
+      if (progress?.newScenes && progress.newScenes.length > 0) {
+        progress.newScenes.forEach((scene) => {
+          ShotGrid.appendScene(scene, scene.index);
+        });
+      }
     });
     if (detectProgressCleanup) cleanups.push(detectProgressCleanup);
 
