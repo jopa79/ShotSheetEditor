@@ -14,6 +14,16 @@ const Toolbar = (() => {
   let _undoButton = null;
   let _redoButton = null;
   let _stateListeners = [];
+  let _boundListeners = [];
+
+  /**
+   * Track a DOM event listener for cleanup
+   */
+  const _addTrackedListener = (el, type, handler) => {
+    if (!el) return;
+    el.addEventListener(type, handler);
+    _boundListeners.push({ el, type, handler });
+  };
 
   /**
    * Handle Open Video button click — öffnet Dialog, delegiert an openVideoFromPath
@@ -342,44 +352,34 @@ const Toolbar = (() => {
     const themeBtn = document.querySelector('#btnTheme');
 
     // Bind click handlers
-    if (openVideoBtn) {
-      openVideoBtn.addEventListener('click', openVideo);
-    }
-
-    if (_detectButton) {
-      _detectButton.addEventListener('click', _handleDetectScenes);
-    }
+    _addTrackedListener(openVideoBtn, 'click', openVideo);
+    _addTrackedListener(_detectButton, 'click', _handleDetectScenes);
 
     // Threshold slider
     if (_thresholdSlider) {
-      _thresholdSlider.addEventListener('input', (e) => {
-        _handleThresholdInput(e.target.value);
-      });
-      _thresholdSlider.addEventListener('change', () => {
-        _handleThresholdCommit();
-      });
+      const onSliderInput = (e) => _handleThresholdInput(e.target.value);
+      const onSliderChange = () => _handleThresholdCommit();
+      _addTrackedListener(_thresholdSlider, 'input', onSliderInput);
+      _addTrackedListener(_thresholdSlider, 'change', onSliderChange);
       _updateThresholdDisplay();
     }
 
     // Undo/Redo buttons
-    if (_undoButton) {
-      _undoButton.addEventListener('click', _handleUndo);
-    }
-    if (_redoButton) {
-      _redoButton.addEventListener('click', _handleRedo);
-    }
+    _addTrackedListener(_undoButton, 'click', _handleUndo);
+    _addTrackedListener(_redoButton, 'click', _handleRedo);
 
     // Grid size pill buttons
     const gridSizeGroup = document.querySelector('#gridSizeGroup');
     if (gridSizeGroup) {
       const sizeMap = { small: 150, medium: 200, large: 300, xlarge: 400 };
       gridSizeGroup.querySelectorAll('[data-size]').forEach((btn) => {
-        btn.addEventListener('click', () => {
+        const handler = () => {
           AppState.setState({ gridSize: sizeMap[btn.dataset.size] || 200 });
           gridSizeGroup.querySelectorAll('[data-size]').forEach((b) => {
             b.classList.toggle('active', b === btn);
           });
-        });
+        };
+        _addTrackedListener(btn, 'click', handler);
       });
     }
 
@@ -396,11 +396,12 @@ const Toolbar = (() => {
     const filterGroup = document.querySelector('#filterGroup');
     if (filterGroup) {
       filterGroup.querySelectorAll('[data-filter]').forEach((btn) => {
-        btn.addEventListener('click', () => {
+        const handler = () => {
           const filterVal = btn.dataset.filter === 'favs' ? 'favorites' : 'all';
           AppState.setState({ filterMode: filterVal });
-          _syncFilterPills(filterGroup); // Sofort sync nach Klick
-        });
+          _syncFilterPills(filterGroup);
+        };
+        _addTrackedListener(btn, 'click', handler);
       });
 
       // State-Listener für externe filterMode-Änderungen (z.B. via V-Shortcut)
@@ -413,8 +414,7 @@ const Toolbar = (() => {
 
     // Export button
     if (exportBtn) {
-      exportBtn.addEventListener('click', () => {
-        // Show context menu with export options
+      const onExportClick = () => {
         const rect = exportBtn.getBoundingClientRect();
         showContextMenu(
           [
@@ -424,18 +424,20 @@ const Toolbar = (() => {
           rect.left,
           rect.bottom + 4,
         );
-      });
+      };
+      _addTrackedListener(exportBtn, 'click', onExportClick);
     }
 
     // Theme toggle button
     if (themeBtn) {
-      themeBtn.addEventListener('click', async () => {
+      const onThemeClick = async () => {
         try {
           await IPC.toggleTheme();
         } catch (err) {
           console.error('Toolbar: toggleTheme failed', err);
         }
-      });
+      };
+      _addTrackedListener(themeBtn, 'click', onThemeClick);
     }
 
     // State listener für isDetecting (Button-Zustand)
@@ -463,6 +465,11 @@ const Toolbar = (() => {
       if (fn) fn();
     });
     _stateListeners = [];
+
+    for (const { el, type, handler } of _boundListeners) {
+      el.removeEventListener(type, handler);
+    }
+    _boundListeners = [];
   };
 
   return {
