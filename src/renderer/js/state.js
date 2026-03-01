@@ -13,7 +13,9 @@ const AppState = (() => {
     selectedIndices: [],
     favoriteIndices: [],
     deletedIndices: [],
-    filterMode: 'all', // 'all' or 'favorites'
+    filterMode: 'all', // 'all', 'favorites', oder 'collection'
+    collections: [],
+    activeCollectionId: null,
     currentShotIdx: -1,
     isDetecting: false,
     detectProgress: 0,
@@ -38,11 +40,20 @@ const AppState = (() => {
   };
 
   /**
-   * Get shallow copy of entire state
-   * @returns {object} Shallow copy of _state
+   * Get deep copy of entire state
+   * Arrays werden tief kopiert um externe Mutationen zu verhindern
+   * @returns {object} Deep copy von _state (Arrays sind neue Referenzen)
    */
   const getState = () => {
-    return { ..._state };
+    return {
+      ..._state,
+      // Arrays tief kopieren um externe Mutationen zu verhindern
+      scenes: [..._state.scenes],
+      selectedIndices: [..._state.selectedIndices],
+      favoriteIndices: [..._state.favoriteIndices],
+      deletedIndices: [..._state.deletedIndices],
+      collections: _state.collections.map((c) => ({ ...c, indices: [...c.indices] })),
+    };
   };
 
   /**
@@ -103,6 +114,8 @@ const AppState = (() => {
       favoriteIndices: [],
       deletedIndices: [],
       filterMode: 'all',
+      collections: [],
+      activeCollectionId: null,
       currentShotIdx: -1,
       isDetecting: false,
       detectProgress: 0,
@@ -165,11 +178,20 @@ const AppState = (() => {
     const favoriteSet = _state.filterMode === 'favorites'
       ? new Set(_state.favoriteIndices)
       : null;
+
+    // Collection-Filter: nur Szenen der aktiven Collection zeigen
+    let collectionSet = null;
+    if (_state.filterMode === 'collection' && _state.activeCollectionId) {
+      const col = _state.collections.find((c) => c.id === _state.activeCollectionId);
+      collectionSet = col ? new Set(col.indices) : null;
+    }
+
     const visible = [];
 
     _state.scenes.forEach((scene, idx) => {
       if (deletedSet.has(idx)) return;
       if (favoriteSet && !favoriteSet.has(idx)) return;
+      if (collectionSet && !collectionSet.has(idx)) return;
 
       visible.push({
         ...scene,

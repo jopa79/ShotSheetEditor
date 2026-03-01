@@ -8,10 +8,27 @@ const VideoPlayer = (() => {
   let _playButtonElement = null;
   let _stateListeners = [];
 
+  // Benannte Handler auf Modul-Ebene für sauberes Cleanup (Fix #93)
+  let _onTimeUpdate = null;
+  let _onPlay = null;
+  let _onPause = null;
+
+  /**
+   * Video pausieren und Quelle leeren (Fix #147)
+   * Verhindert Audio-Überlappung beim Laden eines neuen Videos
+   */
+  const pauseAndReset = () => {
+    if (!_videoElement) return;
+    _videoElement.pause();
+    _videoElement.src = '';
+    _videoElement.load();
+  };
+
   /**
    * Load video file
    * Gibt ein Promise zurück: resolved bei loadedmetadata, rejected bei Fehler.
    * Damit kann der Aufrufer bei Fehler auf Proxy-Transcoding fallbacken.
+   * Fix #147: Vorheriges Video wird vor dem Laden pausiert
    * @param {string} filePath - Pfad zur Videodatei
    * @returns {Promise<void>}
    */
@@ -21,6 +38,9 @@ const VideoPlayer = (() => {
         reject(new Error('Video element not found'));
         return;
       }
+
+      // Vorheriges Video pausieren um Audio-Überlappung zu verhindern (Fix #147)
+      _videoElement.pause();
 
       // Convert file path to file:// protocol URL
       let videoUrl = filePath;
@@ -66,6 +86,7 @@ const VideoPlayer = (() => {
   /**
    * Extract thumbnails for all scenes via batch extraction,
    * then update scenes with the extracted file paths.
+   * Fix #143: Keine direkte Mutation des scenes-Arrays — neue Objekte erstellen
    */
   const _extractThumbsForScenes = async () => {
     const scenes = AppState.get('scenes');
@@ -82,14 +103,21 @@ const VideoPlayer = (() => {
       const result = await IPC.extractFrames(videoPath, scenes, outputDir);
       if (!result || !result.success || !result.frames) return;
 
-      // Update scenes with extracted thumbnail paths
+      // Frame-Map aufbauen für effiziente Lookup (Fix #143)
+      const frameMap = new Map();
       for (const frame of result.frames) {
-        if (frame && frame.path != null && frame.index != null && scenes[frame.index]) {
-          scenes[frame.index].thumbPath = frame.path;
+        if (frame && frame.path != null && frame.index != null) {
+          frameMap.set(frame.index, frame.path);
         }
       }
 
-      AppState.setState({ scenes: [...scenes] });
+      // Neue Scene-Objekte erstellen — keine direkte Mutation (Fix #143)
+      const newScenes = scenes.map((scene, idx) => {
+        const thumbPath = frameMap.get(idx);
+        return thumbPath ? { ...scene, thumbPath } : scene;
+      });
+
+      AppState.setState({ scenes: newScenes });
     } catch (err) {
       console.error('VideoPlayer: _extractThumbsForScenes failed', err);
     }
@@ -173,6 +201,26 @@ const VideoPlayer = (() => {
   };
 
   /**
+   * Play-Button auf "Pause"-Icon setzen
+   */
+  const _setButtonToPause = () => {
+    if (_playButtonElement) {
+      _playButtonElement.textContent = '\u23F8'; // Pause-Symbol
+      _playButtonElement.setAttribute('aria-label', 'Pause');
+    }
+  };
+
+  /**
+   * Play-Button auf "Play"-Icon setzen
+   */
+  const _setButtonToPlay = () => {
+    if (_playButtonElement) {
+      _playButtonElement.textContent = '\u25B6'; // Play-Symbol
+      _playButtonElement.setAttribute('aria-label', 'Play');
+    }
+  };
+
+  /**
    * Initialize module
    */
   const init = () => {
@@ -185,29 +233,23 @@ const VideoPlayer = (() => {
       return;
     }
 
-    // Initialize timecode display if available
+    // Timecode-Anzeige initialisieren
     if (_tcDisplayElement) {
       updateTcDisplay();
     }
 
-    // Timeupdate listener for TC display
-    _videoElement.addEventListener('timeupdate', () => {
-      updateTcDisplay();
-    });
+    // Benannte Handler definieren für späteres Cleanup (Fix #93)
+    _onTimeUpdate = () => updateTcDisplay();
+    _onPlay = _setButtonToPause;
+    _onPause = _setButtonToPlay;
 
-    // Play/pause button toggle
+    // Listener mit benannten Handlern registrieren (Fix #93)
+    _videoElement.addEventListener('timeupdate', _onTimeUpdate);
+
     if (_playButtonElement) {
       _playButtonElement.addEventListener('click', togglePlayPause);
-
-      _videoElement.addEventListener('play', () => {
-        _playButtonElement.innerHTML = '⏸';
-        _playButtonElement.setAttribute('aria-label', 'Pause');
-      });
-
-      _videoElement.addEventListener('pause', () => {
-        _playButtonElement.innerHTML = '▶';
-        _playButtonElement.setAttribute('aria-label', 'Play');
-      });
+      _videoElement.addEventListener('play', _onPlay);
+      _videoElement.addEventListener('pause', _onPause);
     }
 
     // State listener for currentShotIdx changes
@@ -226,17 +268,34 @@ const VideoPlayer = (() => {
   };
 
   /**
-   * Cleanup module
+   * Cleanup module — State-Listener und DOM-Listener entfernen (Fix #93)
    */
   const cleanup = () => {
     _stateListeners.forEach((fn) => fn());
     _stateListeners = [];
+
+    // DOM-Listener mit benannten Handlern entfernen (Fix #93)
+    if (_videoElement) {
+      if (_onTimeUpdate) _videoElement.removeEventListener('timeupdate', _onTimeUpdate);
+      if (_onPlay) _videoElement.removeEventListener('play', _onPlay);
+      if (_onPause) _videoElement.removeEventListener('pause', _onPause);
+    }
+    if (_playButtonElement) {
+      _playButtonElement.removeEventListener('click', togglePlayPause);
+    }
+
+    // Handler-Referenzen zurücksetzen
+    _onTimeUpdate = null;
+    _onPlay = null;
+    _onPause = null;
   };
 
   return {
     init,
     cleanup,
     loadVideo,
+    pauseAndReset,
+    extractThumbs: _extractThumbsForScenes,
     seekTo,
     updateTcDisplay,
     prevShot,

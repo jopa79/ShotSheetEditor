@@ -6,6 +6,8 @@
 const SelectionManager = (() => {
   let _selectionBar = null;
   let _stateCleanup = null;
+  // Tracked DOM-Listener für sauberes Cleanup (Fix #100)
+  let _boundListeners = [];
 
   /**
    * Select/toggle a single shot
@@ -27,6 +29,7 @@ const SelectionManager = (() => {
 
   /**
    * Select range of shots (inclusive)
+   * Bounds-Check gegen scenes.length und deletedIndices (Fix #148)
    * @param {number} fromIdx - Start index
    * @param {number} toIdx - End index
    */
@@ -38,10 +41,16 @@ const SelectionManager = (() => {
 
     const start = Math.min(fromIdx, toIdx);
     const end = Math.max(fromIdx, toIdx);
+
+    // Nur gültige, nicht-gelöschte Indizes aufnehmen
+    const scenesLength = AppState.get('scenes').length;
+    const deletedSet = new Set(AppState.get('deletedIndices'));
     const newSelected = [];
 
     for (let i = start; i <= end; i++) {
-      newSelected.push(i);
+      if (i < scenesLength && !deletedSet.has(i)) {
+        newSelected.push(i);
+      }
     }
 
     AppState.setState({ selectedIndices: newSelected });
@@ -83,7 +92,8 @@ const SelectionManager = (() => {
 
   /**
    * Toggle favorite status of a shot
-   * @param {idx} idx - Shot index
+   * Fix #87: UndoRedo.commit() VOR setState() aufrufen
+   * @param {number} idx - Shot index
    */
   const toggleFavorite = (idx) => {
     const favorites = AppState.get('favoriteIndices');
@@ -96,12 +106,13 @@ const SelectionManager = (() => {
       newFavorites.push(idx);
     }
 
-    AppState.setState({ favoriteIndices: newFavorites });
-    UndoRedo.commit();
+    UndoRedo.commit(); // ZUERST: Snapshot des alten States
+    AppState.setState({ favoriteIndices: newFavorites }); // DANACH: State ändern
   };
 
   /**
    * Add all selected shots to favorites
+   * Fix #87: UndoRedo.commit() VOR setState() aufrufen
    */
   const favSelected = () => {
     const selected = AppState.get('selectedIndices');
@@ -113,12 +124,13 @@ const SelectionManager = (() => {
     }
 
     const newFavorites = Array.from(favoriteSet).sort((a, b) => a - b);
-    AppState.setState({ favoriteIndices: newFavorites });
-    UndoRedo.commit();
+    UndoRedo.commit(); // ZUERST: Snapshot des alten States
+    AppState.setState({ favoriteIndices: newFavorites }); // DANACH: State ändern
   };
 
   /**
    * Remove all selected shots from favorites
+   * Fix #87: UndoRedo.commit() VOR setState() aufrufen
    */
   const unfavSelected = () => {
     const selected = AppState.get('selectedIndices');
@@ -126,13 +138,14 @@ const SelectionManager = (() => {
     const selectedSet = new Set(selected);
     const newFavorites = favorites.filter((idx) => !selectedSet.has(idx));
 
-    AppState.setState({ favoriteIndices: newFavorites });
-    UndoRedo.commit();
+    UndoRedo.commit(); // ZUERST: Snapshot des alten States
+    AppState.setState({ favoriteIndices: newFavorites }); // DANACH: State ändern
   };
 
   /**
    * Delete selected shots
    * Adds indices to deletedIndices and clears selection
+   * Fix #87: UndoRedo.commit() VOR setState() aufrufen
    */
   const deleteSelected = () => {
     const selected = AppState.get('selectedIndices');
@@ -147,12 +160,79 @@ const SelectionManager = (() => {
 
     const newDeleted = Array.from(deletedSet).sort((a, b) => a - b);
 
-    AppState.setState({
+    UndoRedo.commit(); // ZUERST: Snapshot des alten States
+    AppState.setState({ // DANACH: State ändern
       deletedIndices: newDeleted,
       selectedIndices: [],
     });
+  };
 
-    UndoRedo.commit();
+  /**
+   * Einzelnen Shot löschen (unabhängig von Selektion)
+   * Fix #87: UndoRedo.commit() VOR setState() aufrufen
+   * @param {number} idx - Shot index
+   */
+  const deleteSingle = (idx) => {
+    const deleted = AppState.get('deletedIndices');
+    if (deleted.includes(idx)) return;
+
+    const newDeleted = [...deleted, idx].sort((a, b) => a - b);
+    UndoRedo.commit(); // ZUERST: Snapshot des alten States
+    AppState.setState({ deletedIndices: newDeleted }); // DANACH: State ändern
+  };
+
+  /**
+   * Einzelnen Shot wiederherstellen
+   * Fix #87: UndoRedo.commit() VOR setState() aufrufen
+   * @param {number} idx - Shot index
+   */
+  const restoreSingle = (idx) => {
+    const deleted = AppState.get('deletedIndices');
+    const newDeleted = deleted.filter((i) => i !== idx);
+    UndoRedo.commit(); // ZUERST: Snapshot des alten States
+    AppState.setState({ deletedIndices: newDeleted }); // DANACH: State ändern
+  };
+
+  /**
+   * Context Menu für Collection-Zuweisung anzeigen
+   * @param {MouseEvent} e - Click-Event
+   */
+  const _showCollectionMenu = (e) => {
+    const selected = AppState.get('selectedIndices');
+    if (selected.length === 0) return;
+
+    const collections = AppState.get('collections');
+    const items = [];
+
+    // Bestehende Collections als Menüpunkte
+    for (const col of collections) {
+      items.push({
+        label: `${col.name} (${col.indices.length})`,
+        action: () => {
+          CollectionManager.addToCollection(col.id, selected);
+          showToast(`${selected.length} shots added to "${col.name}"`, 'success');
+        },
+      });
+    }
+
+    if (collections.length > 0) {
+      items.push({ separator: true });
+    }
+
+    // "New Collection from Selection"
+    items.push({
+      label: 'New Collection from Selection...',
+      action: () => {
+        const name = prompt('Collection name:');
+        if (name && name.trim()) {
+          CollectionManager.createCollection(name, selected);
+          showToast(`Collection "${name.trim()}" created with ${selected.length} shots`, 'success');
+        }
+      },
+    });
+
+    const rect = e.target.getBoundingClientRect();
+    showContextMenu(items, rect.left, rect.top - 4);
   };
 
   /**
@@ -174,13 +254,13 @@ const SelectionManager = (() => {
 
     _selectionBar.style.display = 'flex';
 
-    // Update count (matching #selectionCount from index.html)
+    // Anzahl aktualisieren
     const countEl = _selectionBar.querySelector('#selectionCount');
     if (countEl) {
       countEl.textContent = `${selectedCount} selected`;
     }
 
-    // Toggle favorite/unfavorite button visibility
+    // Favorite/Unfavorite Button-Sichtbarkeit umschalten
     const selected = AppState.get('selectedIndices');
     const favorites = AppState.get('favoriteIndices');
     const allAreFav = selected.every((idx) => favorites.includes(idx));
@@ -189,6 +269,18 @@ const SelectionManager = (() => {
     const unmarkFavBtn = _selectionBar.querySelector('#btnUnmarkFav');
     if (markFavBtn) markFavBtn.style.display = allAreFav ? 'none' : '';
     if (unmarkFavBtn) unmarkFavBtn.style.display = allAreFav ? '' : 'none';
+  };
+
+  /**
+   * Hilfsfunktion: Listener tracken für späteres Cleanup (Fix #100)
+   * @param {Element} el - DOM-Element
+   * @param {string} type - Event-Typ
+   * @param {Function} handler - Event-Handler
+   */
+  const _addTrackedListener = (el, type, handler) => {
+    if (!el) return;
+    el.addEventListener(type, handler);
+    _boundListeners.push({ el, type, handler });
   };
 
   /**
@@ -202,46 +294,45 @@ const SelectionManager = (() => {
       return;
     }
 
-    // Bind selection bar buttons (matching IDs from index.html)
+    // Benannte Handler für "Add to Collection" Button (Fix #100)
+    const _onAddToCollection = (e) => _showCollectionMenu(e);
+
+    // Selection-Bar-Buttons mit Tracking registrieren (Fix #100)
     const favBtn = _selectionBar.querySelector('#btnMarkFav');
-    if (favBtn) {
-      favBtn.addEventListener('click', () => {
-        favSelected();
-      });
-    }
+    _addTrackedListener(favBtn, 'click', favSelected);
 
     const unfavBtn = _selectionBar.querySelector('#btnUnmarkFav');
-    if (unfavBtn) {
-      unfavBtn.addEventListener('click', () => {
-        unfavSelected();
-      });
-    }
+    _addTrackedListener(unfavBtn, 'click', unfavSelected);
 
     const deleteBtn = _selectionBar.querySelector('#btnDelete');
-    if (deleteBtn) {
-      deleteBtn.addEventListener('click', () => {
-        deleteSelected();
-      });
-    }
+    _addTrackedListener(deleteBtn, 'click', deleteSelected);
+
+    // "→ Collection" Button — zeigt Context Menu mit bestehenden Collections
+    const addToColBtn = _selectionBar.querySelector('#btnAddToCollection');
+    _addTrackedListener(addToColBtn, 'click', _onAddToCollection);
 
     const deselectBtn = _selectionBar.querySelector('#btnClearSelection');
-    if (deselectBtn) {
-      deselectBtn.addEventListener('click', () => {
-        deselectAll();
-      });
-    }
+    _addTrackedListener(deselectBtn, 'click', deselectAll);
 
-    // Listen to selection changes
+    // State-Listener für Selektionsänderungen
     _stateCleanup = AppState.onStateChange('selectedIndices', () => {
       updateSelectionBar();
     });
   };
 
+  /**
+   * Cleanup module — State-Listener und DOM-Listener entfernen (Fix #100)
+   */
   const cleanup = () => {
     if (_stateCleanup) {
       _stateCleanup();
       _stateCleanup = null;
     }
+    // Alle tracked DOM-Listener entfernen
+    for (const { el, type, handler } of _boundListeners) {
+      el.removeEventListener(type, handler);
+    }
+    _boundListeners = [];
   };
 
   return {
@@ -256,6 +347,8 @@ const SelectionManager = (() => {
     favSelected,
     unfavSelected,
     deleteSelected,
+    deleteSingle,
+    restoreSingle,
     updateSelectionBar,
   };
 })();
