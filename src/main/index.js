@@ -12,12 +12,17 @@ const { IPC_CHANNELS, QUIT_TIMEOUT_MS } = require('../shared/constants');
 
 let mainWindow;
 let quitTimer = null;
+// IPC-Handler nur einmal registrieren — verhindert doppelte Registrierung bei activate (fix #171)
+let _ipcHandlersRegistered = false;
 
 // Create window and setup handlers
 async function onReady() {
   try {
     mainWindow = await windowManager.createMainWindow();
-    ipcHandlers.registerIpcHandlers(mainWindow);
+    if (!_ipcHandlersRegistered) {
+      ipcHandlers.registerIpcHandlers(mainWindow);
+      _ipcHandlersRegistered = true;
+    }
     buildMenu();
   } catch (error) {
     console.error('Failed to create window:', error);

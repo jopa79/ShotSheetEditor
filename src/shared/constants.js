@@ -22,6 +22,7 @@ const IPC_CHANNELS = {
   // Export operations
   EXPORT_SEQUENCE: 'export:sequence',
   EXPORT_SEQUENCE_PROGRESS: 'export:sequenceProgress',
+  EXPORT_ZIP_PROGRESS: 'export:zipProgress',
   EXPORT_ZIP: 'export:zip',
   EXPORT_SELECT_DIR: 'export:selectDir',
 

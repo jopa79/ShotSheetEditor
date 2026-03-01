@@ -103,6 +103,14 @@ function openProject(projectPath) {
       return { success: false, error: validation.error };
     }
 
+    // Pfad gegen homeDir validieren — verhindert Path-Traversal (fix #118)
+    const os = require('os');
+    const homeDir = os.homedir();
+    const resolvedPath = path.resolve(projectPath);
+    if (!resolvedPath.startsWith(homeDir + path.sep)) {
+      return { success: false, error: 'Access denied: project path must be within home directory' };
+    }
+
     if (!fs.existsSync(projectPath)) {
       return { success: false, error: 'Project not found' };
     }

@@ -3,6 +3,10 @@ const fs = require('fs');
 const { execFileSync } = require('child_process');
 const { app } = require('electron');
 
+// Modul-Level Cache — verhindert wiederholtes execFileSync beim Pfad-Lookup (fix #107/#69)
+let _cachedFFmpegPath = undefined;
+let _cachedFFprobePath = undefined;
+
 // Get bundled ffmpeg path
 function getBundledFFmpegPath() {
   const bundledPath = path.join(process.resourcesPath || app.getAppPath(), 'ffmpeg');
@@ -19,7 +23,8 @@ function getBundledFFmpegPath() {
 function getSystemFFmpegPath() {
   try {
     const cmd = process.platform === 'win32' ? 'where' : 'which';
-    const result = execFileSync(cmd, ['ffmpeg'], { encoding: 'utf8' }).trim();
+    // Nur erste Zeile verwenden — Windows 'where' gibt mehrere Treffer zurück (fix #157)
+    const result = execFileSync(cmd, ['ffmpeg'], { encoding: 'utf8' }).split('\n')[0].trim();
     return result || null;
   } catch (error) {
     return null;
@@ -48,35 +53,46 @@ function getMacOSFFmpegPath() {
 
 // Get ffmpeg path with fallback chain
 function getFFmpegPath() {
+  // Cache-Treffer zurückgeben — verhindert mehrfaches Suchen (fix #107/#69)
+  if (_cachedFFmpegPath !== undefined) return _cachedFFmpegPath;
+
   // Try bundled first
   let ffmpegPath = getBundledFFmpegPath();
   if (ffmpegPath) {
-    return ffmpegPath;
+    _cachedFFmpegPath = ffmpegPath;
+    return _cachedFFmpegPath;
   }
 
   // Try macOS Homebrew
   ffmpegPath = getMacOSFFmpegPath();
   if (ffmpegPath) {
-    return ffmpegPath;
+    _cachedFFmpegPath = ffmpegPath;
+    return _cachedFFmpegPath;
   }
 
   // Try system PATH
   ffmpegPath = getSystemFFmpegPath();
   if (ffmpegPath) {
-    return ffmpegPath;
+    _cachedFFmpegPath = ffmpegPath;
+    return _cachedFFmpegPath;
   }
 
+  _cachedFFmpegPath = null;
   return null;
 }
 
 // Get ffprobe path (same logic as ffmpeg)
 function getFFprobePath() {
+  // Cache-Treffer zurückgeben — verhindert mehrfaches Suchen (fix #107/#69)
+  if (_cachedFFprobePath !== undefined) return _cachedFFprobePath;
+
   const bundledPath = path.join(process.resourcesPath || app.getAppPath(), 'ffmpeg');
   const exeName = process.platform === 'win32' ? 'ffprobe.exe' : 'ffprobe';
   let fullPath = path.join(bundledPath, exeName);
 
   if (fs.existsSync(fullPath)) {
-    return fullPath;
+    _cachedFFprobePath = fullPath;
+    return _cachedFFprobePath;
   }
 
   // Try macOS Homebrew
@@ -89,7 +105,8 @@ function getFFprobePath() {
 
     for (const brewPath of brewPaths) {
       if (fs.existsSync(brewPath)) {
-        return brewPath;
+        _cachedFFprobePath = brewPath;
+        return _cachedFFprobePath;
       }
     }
   }
@@ -97,14 +114,17 @@ function getFFprobePath() {
   // Try system PATH
   try {
     const cmd = process.platform === 'win32' ? 'where' : 'which';
-    const result = execFileSync(cmd, ['ffprobe'], { encoding: 'utf8' }).trim();
+    // Nur erste Zeile verwenden — Windows 'where' gibt mehrere Treffer zurück (fix #157)
+    const result = execFileSync(cmd, ['ffprobe'], { encoding: 'utf8' }).split('\n')[0].trim();
     if (result) {
-      return result;
+      _cachedFFprobePath = result;
+      return _cachedFFprobePath;
     }
   } catch (error) {
     // Continue to null
   }
 
+  _cachedFFprobePath = null;
   return null;
 }
 

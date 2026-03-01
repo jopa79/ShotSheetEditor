@@ -70,6 +70,10 @@ function registerIpcHandlers(mainWindow) {
       if (!meta || !meta.success) {
         return { success: false, error: meta?.error || 'Failed to open video' };
       }
+      // Proxy-Entscheidung auch im VIDEO_OPEN-Handler treffen (fix #128)
+      if (meta?.success && meta?.data) {
+        meta.data.needsProxy = proxyGenerator.needsTranscoding(meta.data.codec, filePath);
+      }
       return { success: true, path: filePath, meta };
     }),
   );
@@ -142,22 +146,28 @@ function registerIpcHandlers(mainWindow) {
       }
 
       // Resolve and validate path is within allowed directories
-      const resolved = path.resolve(thumbPath);
       const homeDir = os.homedir();
       const tmpDir = os.tmpdir();
+
+      // Symlink-sichere Auflösung: realpathSync schlägt fehl wenn die Datei nicht existiert (fix #88)
+      let resolved;
+      try {
+        resolved = fs.realpathSync(thumbPath);
+      } catch {
+        return { success: false, error: 'Thumbnail not found' };
+      }
+
       const isAllowed =
         resolved.startsWith(homeDir + path.sep) ||
         resolved.startsWith(tmpDir + path.sep);
       if (!isAllowed) {
         return { success: false, error: 'Access denied: path outside allowed directories' };
       }
-
-      if (!fs.existsSync(resolved)) {
-        return { success: false, error: 'Thumbnail not found' };
-      }
       const data = await fs.promises.readFile(resolved);
       const base64 = data.toString('base64');
-      return { success: true, data: `data:image/jpeg;base64,${base64}` };
+      // MIME-Type korrekt aus Dateiendung ableiten (fix #91)
+      const mimeType = ext === '.png' ? 'image/png' : 'image/jpeg';
+      return { success: true, data: `data:${mimeType};base64,${base64}` };
     }),
   );
 
@@ -173,6 +183,14 @@ function registerIpcHandlers(mainWindow) {
   ipcMain.handle(
     IPC_CHANNELS.PROJECT_OPEN,
     wrapHandler(async (event, projectPath) => {
+      // Path-Traversal-Schutz: Projekt muss im Home-Verzeichnis liegen (fix #118)
+      const os = require('os');
+      const homeDir = os.homedir();
+      const resolved = path.resolve(projectPath);
+      if (!resolved.startsWith(homeDir + path.sep)) {
+        return { success: false, error: 'Access denied: project path must be within home directory' };
+      }
+
       const result = projectManager.openProject(projectPath);
       return result;
     }),
@@ -195,6 +213,20 @@ function registerIpcHandlers(mainWindow) {
     IPC_CHANNELS.EXPORT_SEQUENCE,
     wrapHandler(async (event, data) => {
       const { videoPath, startTime, endTime, outputPath, codec } = data;
+
+      // Path-Traversal-Schutz für videoPath und outputPath (fix #117)
+      const os = require('os');
+      const homeDir = os.homedir();
+      const tmpDir = os.tmpdir();
+      const safeVideoPath = path.resolve(videoPath);
+      const safeOutputPath = path.resolve(outputPath);
+      if (!safeVideoPath.startsWith(homeDir + path.sep) && !safeVideoPath.startsWith(tmpDir + path.sep)) {
+        return { success: false, error: 'Access denied: video path outside allowed directories' };
+      }
+      if (!safeOutputPath.startsWith(homeDir + path.sep) && !safeOutputPath.startsWith(tmpDir + path.sep)) {
+        return { success: false, error: 'Access denied: output path outside allowed directories' };
+      }
+
       return exportManager.exportSequence(videoPath, startTime, endTime, outputPath, codec, (progress) => {
         sendProgress(mainWindow, IPC_CHANNELS.EXPORT_SEQUENCE_PROGRESS, progress);
       });
@@ -206,7 +238,8 @@ function registerIpcHandlers(mainWindow) {
     wrapHandler(async (event, data) => {
       const { thumbnailPaths, outputPath } = data;
       return exportManager.exportZip(thumbnailPaths, outputPath, (progress) => {
-        sendProgress(mainWindow, IPC_CHANNELS.EXPORT_SEQUENCE_PROGRESS, progress);
+        // Korrekter Channel für ZIP-Progress (fix #106)
+        sendProgress(mainWindow, IPC_CHANNELS.EXPORT_ZIP_PROGRESS, progress);
       });
     }),
   );
@@ -278,6 +311,15 @@ function registerIpcHandlers(mainWindow) {
   ipcMain.handle(
     IPC_CHANNELS.PROXY_GENERATE,
     wrapHandler(async (event, { videoPath, duration }) => {
+      // Path-Traversal-Schutz für videoPath (fix #120)
+      const os = require('os');
+      const homeDir = os.homedir();
+      const tmpDir = os.tmpdir();
+      const safeVideoPath = path.resolve(videoPath);
+      if (!safeVideoPath.startsWith(homeDir + path.sep) && !safeVideoPath.startsWith(tmpDir + path.sep)) {
+        return { success: false, error: 'Access denied: video path outside allowed directories' };
+      }
+
       const result = await proxyGenerator.generateProxy(videoPath, duration, (progress) => {
         sendProgress(mainWindow, IPC_CHANNELS.PROXY_GENERATE_PROGRESS, progress);
       });

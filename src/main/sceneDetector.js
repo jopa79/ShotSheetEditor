@@ -3,11 +3,14 @@ const ffmpegBridge = require('./ffmpegBridge');
 const { secondsToTimecode } = require('../shared/constants');
 
 let detectionProcess = null;
+// Flag ob Abbruch angefordert wurde — verhindert false-success bei cancel (fix #114)
+let _cancelRequested = false;
 
 // Detect scenes in video
 function detectScenes(videoPath, threshold, onProgress) {
   // Cancel any ongoing detection before starting a new one
   cancelDetection();
+  _cancelRequested = false;
 
   return new Promise((resolve) => {
     try {
@@ -33,13 +36,15 @@ function detectScenes(videoPath, threshold, onProgress) {
         '-',
       ];
 
-      detectionProcess = spawn(ffmpegPath, args);
+      // Lokale Referenz verwenden — verhindert Race Condition bei concurrent Calls (fix #121)
+      const proc = spawn(ffmpegPath, args);
+      detectionProcess = proc;
 
       let lineBuffer = '';
       const seenTimes = new Set();
 
       // Parse stderr for scene detection output — process only new lines
-      detectionProcess.stderr.on('data', (data) => {
+      proc.stderr.on('data', (data) => {
         lineBuffer += data.toString();
 
         // Split into complete lines; keep incomplete last chunk in buffer
@@ -96,18 +101,21 @@ function detectScenes(videoPath, threshold, onProgress) {
         }
       });
 
-      detectionProcess.stdout.on('data', (data) => {
-        // Ignore stdout (null format)
+      proc.stdout.on('data', () => {
+        // stdout ignorieren (null-Format)
       });
 
-      detectionProcess.on('close', (code) => {
-        detectionProcess = null;
+      proc.on('close', (code) => {
+        // Nur nullen wenn dieser Prozess noch der aktuelle ist (fix #121 Race Condition)
+        if (detectionProcess === proc) {
+          detectionProcess = null;
+        }
 
-        if (code === 0 || code === null) {
-          resolve({
-            success: true,
-            scenes,
-          });
+        if (code === 0) {
+          resolve({ success: true, scenes });
+        } else if (_cancelRequested || code === null) {
+          // Abbruch sauber als canceled melden — nicht als success (fix #114)
+          resolve({ success: false, canceled: true, error: 'Detection canceled' });
         } else {
           resolve({
             success: false,
@@ -116,8 +124,11 @@ function detectScenes(videoPath, threshold, onProgress) {
         }
       });
 
-      detectionProcess.on('error', (error) => {
-        detectionProcess = null;
+      proc.on('error', (error) => {
+        // Nur nullen wenn dieser Prozess noch der aktuelle ist (fix #121)
+        if (detectionProcess === proc) {
+          detectionProcess = null;
+        }
         resolve({
           success: false,
           error: error.message,
@@ -134,6 +145,7 @@ function detectScenes(videoPath, threshold, onProgress) {
 
 // Cancel ongoing detection
 function cancelDetection() {
+  _cancelRequested = true;
   if (detectionProcess) {
     try {
       detectionProcess.kill('SIGTERM');
