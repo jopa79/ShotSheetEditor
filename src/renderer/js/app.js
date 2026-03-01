@@ -461,7 +461,6 @@ const App = (() => {
       Shortcuts.init();
       InfoPanel.init();
 
-      console.log('App: All modules initialized');
     } catch (err) {
       console.error('App: Module initialization failed', err);
       showToast('Application initialization failed', 'error');
@@ -483,7 +482,6 @@ const App = (() => {
     // Set window title
     document.title = 'ShotSheetEditor';
 
-    console.log('App: Initialization complete');
   };
 
   /**
