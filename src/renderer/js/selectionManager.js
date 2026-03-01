@@ -248,11 +248,11 @@ const SelectionManager = (() => {
     const selectedCount = AppState.get('selectedIndices').length;
 
     if (selectedCount === 0) {
-      _selectionBar.style.display = 'none';
+      _selectionBar.classList.add('hidden');
       return;
     }
 
-    _selectionBar.style.display = 'flex';
+    _selectionBar.classList.remove('hidden');
 
     // Anzahl aktualisieren
     const countEl = _selectionBar.querySelector('#selectionCount');
@@ -267,8 +267,8 @@ const SelectionManager = (() => {
 
     const markFavBtn = _selectionBar.querySelector('#btnMarkFav');
     const unmarkFavBtn = _selectionBar.querySelector('#btnUnmarkFav');
-    if (markFavBtn) markFavBtn.style.display = allAreFav ? 'none' : '';
-    if (unmarkFavBtn) unmarkFavBtn.style.display = allAreFav ? '' : 'none';
+    if (markFavBtn) markFavBtn.classList.toggle('hidden', allAreFav);
+    if (unmarkFavBtn) unmarkFavBtn.classList.toggle('hidden', !allAreFav);
   };
 
   /**

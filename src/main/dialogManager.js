@@ -1,10 +1,15 @@
-const { dialog } = require('electron');
+const { dialog, BrowserWindow } = require('electron');
 const path = require('path');
 const { SUPPORTED_FORMATS } = require('../shared/constants');
 
+// Parent-Window für Sheet-Modal auf macOS ermitteln (Fix #164)
+function getParentWindow() {
+  return BrowserWindow.getFocusedWindow() || BrowserWindow.getAllWindows()[0] || null;
+}
+
 // Show open video dialog
 function showOpenVideoDialog() {
-  return dialog.showOpenDialog({
+  return dialog.showOpenDialog(getParentWindow(), {
     properties: ['openFile'],
     filters: [
       {
@@ -21,7 +26,7 @@ function showOpenVideoDialog() {
 
 // Show save project dialog
 function showSaveProjectDialog() {
-  return dialog.showSaveDialog({
+  return dialog.showSaveDialog(getParentWindow(), {
     title: 'Save Project',
     defaultPath: path.join(process.env.HOME || process.env.USERPROFILE, 'ShotSheetProjects'),
     filters: [
@@ -35,7 +40,7 @@ function showSaveProjectDialog() {
 
 // Show open project dialog
 function showOpenProjectDialog() {
-  return dialog.showOpenDialog({
+  return dialog.showOpenDialog(getParentWindow(), {
     title: 'Open Project',
     defaultPath: path.join(process.env.HOME || process.env.USERPROFILE, 'ShotSheetProjects'),
     properties: ['openDirectory'],
@@ -44,7 +49,7 @@ function showOpenProjectDialog() {
 
 // Show export directory dialog
 function showExportDirDialog() {
-  return dialog.showOpenDialog({
+  return dialog.showOpenDialog(getParentWindow(), {
     title: 'Select Export Directory',
     properties: ['openDirectory', 'createDirectory'],
   });
@@ -53,7 +58,7 @@ function showExportDirDialog() {
 // Show unsaved changes dialog
 // Returns: 'save' | 'discard' | 'cancel'
 function showUnsavedChangesDialog() {
-  return dialog.showMessageBox({
+  return dialog.showMessageBox(getParentWindow(), {
     type: 'question',
     title: 'Unsaved Changes',
     message: 'You have unsaved changes. Do you want to save them?',
@@ -73,7 +78,7 @@ function showErrorDialog(title, message) {
 
 // Show info dialog
 function showInfoDialog(title, message) {
-  return dialog.showMessageBox({
+  return dialog.showMessageBox(getParentWindow(), {
     type: 'info',
     title,
     message,

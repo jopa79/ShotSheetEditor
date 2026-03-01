@@ -1042,6 +1042,17 @@ textarea::placeholder {
   flex: 1;
 }
 
+/* Utility: Elemente verstecken ohne inline style (Fix #167) */
+.hidden {
+  display: none !important;
+}
+
+/* Export-Button Dropdown-Pfeil (Fix #167: inline style entfernt) */
+.export-caret {
+  margin-left: 4px;
+  opacity: 0.6;
+}
+
 .text-center {
   text-align: center;
 }

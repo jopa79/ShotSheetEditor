@@ -11,11 +11,12 @@ const UndoRedo = (() => {
 
   /**
    * Create deep clone of snapshot data
+   * structuredClone ist schneller als JSON.parse(JSON.stringify()) (Fix #162)
    * @param {object} snapshot - State snapshot
    * @returns {object} Deep cloned snapshot
    */
   const _deepClone = (snapshot) => {
-    return JSON.parse(JSON.stringify(snapshot));
+    return structuredClone(snapshot);
   };
 
   /**
