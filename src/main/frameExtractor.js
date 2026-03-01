@@ -116,11 +116,19 @@ async function extractFrames(videoPath, scenes, outputDir, thumbSize, onProgress
           completed++;
 
           if (onProgress) {
-            onProgress({
+            // frameResult mitsenden wenn Frame erfolgreich extrahiert
+            const progressData = {
               progress: (completed / scenes.length) * 100,
               completed,
               total: scenes.length,
-            });
+            };
+            if (result.success) {
+              progressData.frameResult = {
+                index: task.scene.index,
+                path: outputPath,
+              };
+            }
+            onProgress(progressData);
           }
         } catch (error) {
           console.error('Error extracting frame:', error);

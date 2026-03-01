@@ -14,15 +14,16 @@ const ShotGrid = (() => {
    * @param {number} idx - Original index in scenes array
    * @returns {HTMLElement} Shot card element
    */
-  const _createShotCard = (scene, idx) => {
+  const _createShotCard = (scene, idx, favoriteSet, selectedSet, deletedSet) => {
     const card = document.createElement('div');
     card.className = 'shot-card';
     card.dataset.idx = idx;
     card.dataset.time = scene.startTime;
 
-    const isFavorite = AppState.get('favoriteIndices').includes(idx);
-    const isSelected = AppState.get('selectedIndices').includes(idx);
-    const isDeleted = AppState.get('deletedIndices').includes(idx);
+    // Set-basierte O(1) Lookups statt Array.includes() O(n)
+    const isFavorite = favoriteSet.has(idx);
+    const isSelected = selectedSet.has(idx);
+    const isDeleted = deletedSet.has(idx);
 
     card.classList.toggle('favorite', isFavorite);
     card.classList.toggle('selected', isSelected);
@@ -183,6 +184,45 @@ const ShotGrid = (() => {
     }
   };
 
+  /**
+   * Nur CSS-Klassen auf bestehenden Karten aktualisieren (kein DOM-Rebuild)
+   * Wird bei selectedIndices-, favoriteIndices- und deletedIndices-Änderungen genutzt
+   */
+  const _updateCardClasses = () => {
+    if (!_gridElement) return;
+
+    // Set-basierte O(1) Lookups für alle drei Arrays
+    const favoriteSet = new Set(AppState.get('favoriteIndices'));
+    const selectedSet = new Set(AppState.get('selectedIndices'));
+    const deletedSet = new Set(AppState.get('deletedIndices'));
+
+    _gridElement.querySelectorAll('.shot-card').forEach((card) => {
+      const idx = parseInt(card.dataset.idx, 10);
+      const isFav = favoriteSet.has(idx);
+      const isSel = selectedSet.has(idx);
+      const isDel = deletedSet.has(idx);
+
+      card.classList.toggle('favorite', isFav);
+      card.classList.toggle('selected', isSel);
+      card.classList.toggle('deleted', isDel);
+
+      // Stern-Text und Label aktualisieren
+      const star = card.querySelector('.fav-star');
+      if (star) {
+        star.textContent = isFav ? '★' : '☆';
+        star.setAttribute('aria-label', isFav ? 'Remove from favorites' : 'Add to favorites');
+      }
+
+      // Selektions-Badge ein-/ausblenden
+      const badge = card.querySelector('.sel-badge');
+      if (badge) {
+        badge.style.display = isSel ? 'block' : 'none';
+      }
+    });
+
+    SelectionManager.updateSelectionBar();
+  };
+
   const renderGrid = () => {
     if (!_gridElement) return;
 
@@ -196,9 +236,14 @@ const ShotGrid = (() => {
       _gridElement.removeChild(_gridElement.firstChild);
     }
 
-    // Alle Szenen rendern — bei typischen Szenenanzahlen (<1000) performant genug
+    // Set-basierte O(1) Lookups für alle Karten — einmal aufbauen, nicht pro Karte
+    const favoriteSet = new Set(AppState.get('favoriteIndices'));
+    const selectedSet = new Set(AppState.get('selectedIndices'));
+    const deletedSet = new Set(AppState.get('deletedIndices'));
+
+    // Alle Szenen rendern
     for (const scene of scenes) {
-      const card = _createShotCard(scene, scene.originalIdx);
+      const card = _createShotCard(scene, scene.originalIdx, favoriteSet, selectedSet, deletedSet);
       _gridElement.appendChild(card);
     }
 
@@ -282,21 +327,22 @@ const ShotGrid = (() => {
       })
     );
 
+    // Nur CSS-Klassen aktualisieren — kein DOM-Rebuild (#68/#82)
     cleanups.push(
       AppState.onStateChange('selectedIndices', () => {
-        renderGrid();
+        _updateCardClasses();
       })
     );
 
     cleanups.push(
       AppState.onStateChange('favoriteIndices', () => {
-        renderGrid();
+        _updateCardClasses();
       })
     );
 
     cleanups.push(
       AppState.onStateChange('deletedIndices', () => {
-        renderGrid();
+        _updateCardClasses();
       })
     );
 
@@ -357,6 +403,9 @@ const ShotGrid = (() => {
    */
   const updateThumbnail = (index, thumbPath) => {
     if (!_gridElement) return;
+    // Pfad-Validierung: nur nicht-leere Strings ohne gefährliche Protokolle (#119)
+    if (!thumbPath || typeof thumbPath !== 'string' || thumbPath.trim() === '') return;
+    if (/^[a-z][a-z\d+\-.]*:/i.test(thumbPath) && !thumbPath.startsWith('/')) return;
     const card = _gridElement.querySelector(`[data-idx="${index}"]`);
     if (!card) return;
     const img = card.querySelector('.shot-card-thumb img');
