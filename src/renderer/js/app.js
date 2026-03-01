@@ -8,6 +8,8 @@ const App = (() => {
   let _modalContainer = null;
   let _contextMenu = null;
   let _ipcListeners = [];
+  // Cleanup-Funktionen für StateChange-Listener in _setupTranscodingUI (#132)
+  let _transcodingCleanups = [];
 
   /**
    * Create toast notification element
@@ -155,9 +157,21 @@ const App = (() => {
 
     document.body.appendChild(_contextMenu);
 
-    // Close menu on outside click
+    // Viewport-Begrenzung: Menü darf nicht über den Rand hinausgehen (#163)
+    // getBoundingClientRect() funktioniert erst nach dem Append
+    const menuRect = _contextMenu.getBoundingClientRect();
+    const vpWidth = window.innerWidth;
+    const vpHeight = window.innerHeight;
+    if (x + menuRect.width > vpWidth) {
+      _contextMenu.style.left = Math.max(0, vpWidth - menuRect.width) + 'px';
+    }
+    if (y + menuRect.height > vpHeight) {
+      _contextMenu.style.top = Math.max(0, y - menuRect.height) + 'px';
+    }
+
+    // Menü bei Klick ausserhalb schliessen — null-Check nötig, da Item-Handler _contextMenu vorher auf null setzen kann (#89)
     const closeMenu = (e) => {
-      if (!_contextMenu.contains(e.target)) {
+      if (_contextMenu && !_contextMenu.contains(e.target)) {
         _contextMenu.remove();
         _contextMenu = null;
         document.removeEventListener('click', closeMenu);
@@ -182,7 +196,9 @@ const App = (() => {
     };
 
     const dragleaveHandler = (e) => {
-      if (e.target === document.body) {
+      // Nur entfernen wenn wir das Fenster wirklich verlassen — nicht bei Kindselement-Wechseln (#85)
+      // relatedTarget ist null wenn der Cursor das Fenster verlässt
+      if (!e.relatedTarget || e.relatedTarget === document.documentElement) {
         document.body.classList.remove('drag-over');
       }
     };
@@ -197,6 +213,7 @@ const App = (() => {
         if (filePath) {
           // Dateiendung prüfen bevor der volle Flow gestartet wird
           const ext = '.' + filePath.split('.').pop().toLowerCase();
+          // Muss mit SUPPORTED_FORMATS in shared/constants.js synchron gehalten werden (#165)
           const SUPPORTED_FORMATS = ['.mp4', '.mov', '.mkv', '.avi', '.mxf', '.webm'];
           if (!SUPPORTED_FORMATS.includes(ext)) {
             showToast(`Unsupported format. Supported: ${SUPPORTED_FORMATS.join(', ')}`, 'warning');
@@ -270,8 +287,8 @@ const App = (() => {
       });
     }
 
-    // Overlay ein/ausblenden je nach Transcoding-Status
-    AppState.onStateChange('isTranscoding', (isTranscoding) => {
+    // Overlay ein/ausblenden je nach Transcoding-Status — Cleanup speichern (#132)
+    const cleanupTranscoding = AppState.onStateChange('isTranscoding', (isTranscoding) => {
       if (!overlay) return;
       if (isTranscoding) {
         if (title) title.textContent = 'Transcoding Proxy...';
@@ -283,12 +300,14 @@ const App = (() => {
       }
     });
 
-    // Fortschrittsbalken aktualisieren
-    AppState.onStateChange('transcodeProgress', (pct) => {
+    // Fortschrittsbalken aktualisieren — Cleanup speichern (#132)
+    const cleanupProgress = AppState.onStateChange('transcodeProgress', (pct) => {
       if (!AppState.get('isTranscoding')) return;
       if (barFill) barFill.style.width = `${pct}%`;
       if (text) text.textContent = `${pct}%`;
     });
+
+    _transcodingCleanups = [cleanupTranscoding, cleanupProgress];
   };
 
   /**
@@ -346,6 +365,13 @@ const App = (() => {
           break;
 
         case 'file:new':
+          // Datenverlust verhindern — ungespeicherte Änderungen abfragen (#131)
+          if (AppState.get('isDirty')) {
+            const confirmed = confirm('Du hast ungespeicherte Änderungen. Neues Projekt ohne Speichern erstellen?');
+            if (!confirmed) break;
+          }
+          // Video pausieren und entladen bevor State zurückgesetzt wird
+          VideoPlayer.pauseAndReset?.();
           AppState.resetState();
           UndoRedo.clear();
           showToast('New project created', 'info');
@@ -482,6 +508,10 @@ const App = (() => {
       if (fn) fn();
     });
     _ipcListeners = [];
+
+    // Cleanup Transcoding-StateChange-Listener (#132)
+    _transcodingCleanups.forEach((fn) => { if (fn) fn(); });
+    _transcodingCleanups = [];
   };
 
   // Make helper functions globally available
