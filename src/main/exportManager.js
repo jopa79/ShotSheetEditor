@@ -5,13 +5,6 @@ const archiver = require('archiver');
 const ffmpegBridge = require('./ffmpegBridge');
 const { EXPORT_CODECS } = require('../shared/constants');
 
-// Validate export path is inside base directory
-function isPathInsideBase(basePath, targetPath) {
-  const base = path.resolve(basePath);
-  const target = path.resolve(targetPath);
-  return target.startsWith(base + path.sep) || target === base;
-}
-
 // Export video sequence (clip)
 function exportSequence(videoPath, startTime, endTime, outputPath, codec, onProgress) {
   return new Promise((resolve) => {
@@ -121,25 +114,42 @@ function exportSequence(videoPath, startTime, endTime, outputPath, codec, onProg
   });
 }
 
-// Export thumbnails as ZIP archive
-function exportZip(thumbnailPaths, outputPath, onProgress) {
-  return new Promise((resolve) => {
+// Export thumbnails as ZIP archive (fix #160: async statt sync I/O)
+async function exportZip(thumbnailPaths, outputPath, onProgress) {
+  try {
+    // Validate output directory (async statt existsSync — fix #160)
+    const outputDir = path.dirname(outputPath);
     try {
-      // Validate output directory
-      const outputDir = path.dirname(outputPath);
-      if (!fs.existsSync(outputDir)) {
-        resolve({
-          success: false,
-          error: 'Output directory does not exist',
-        });
-        return;
-      }
+      await fs.promises.access(outputDir);
+    } catch {
+      return { success: false, error: 'Output directory does not exist' };
+    }
 
+    // Validate thumbnail paths asynchronously (fix #160)
+    const os = require('os');
+    const homeDir = os.homedir();
+    const tmpDir = os.tmpdir();
+    const validPaths = [];
+    for (const thumbPath of thumbnailPaths) {
+      if (typeof thumbPath !== 'string') continue;
+      const resolved = path.resolve(thumbPath);
+      const isAllowed =
+        resolved.startsWith(homeDir + path.sep) ||
+        resolved.startsWith(tmpDir + path.sep);
+      if (!isAllowed) continue;
+      try {
+        await fs.promises.access(resolved);
+        validPaths.push({ resolved, filename: path.basename(resolved) });
+      } catch {
+        // File doesn't exist — skip
+      }
+    }
+
+    return new Promise((resolve) => {
       const output = fs.createWriteStream(outputPath);
       const archive = archiver('zip', { zlib: { level: 6 } });
 
       let resolvedFlag = false;
-
       const safeResolve = (result) => {
         if (!resolvedFlag) {
           resolvedFlag = true;
@@ -156,10 +166,7 @@ function exportZip(thumbnailPaths, outputPath, onProgress) {
       });
 
       archive.on('error', (error) => {
-        safeResolve({
-          success: false,
-          error: error.message,
-        });
+        safeResolve({ success: false, error: error.message });
       });
 
       // archive.on('entry') liefert kein entry.sourcePath — stattdessen 'progress' verwenden (fix #92)
@@ -175,34 +182,18 @@ function exportZip(thumbnailPaths, outputPath, onProgress) {
 
       archive.pipe(output);
 
-      // Add files to archive (validate paths are within home/tmp dirs)
-      const os = require('os');
-      const homeDir = os.homedir();
-      const tmpDir = os.tmpdir();
-      thumbnailPaths.forEach((thumbPath) => {
-        if (typeof thumbPath !== 'string') return;
-        const resolved = path.resolve(thumbPath);
-        const isAllowed =
-          resolved.startsWith(homeDir + path.sep) ||
-          resolved.startsWith(tmpDir + path.sep);
-        if (isAllowed && fs.existsSync(resolved)) {
-          const filename = path.basename(resolved);
-          archive.file(resolved, { name: filename });
-        }
-      });
+      for (const { resolved, filename } of validPaths) {
+        archive.file(resolved, { name: filename });
+      }
 
       archive.finalize();
-    } catch (error) {
-      resolve({
-        success: false,
-        error: error.message,
-      });
-    }
-  });
+    });
+  } catch (error) {
+    return { success: false, error: error.message };
+  }
 }
 
 module.exports = {
   exportSequence,
   exportZip,
-  isPathInsideBase,
 };

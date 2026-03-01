@@ -7,6 +7,7 @@ const VideoPlayer = (() => {
   let _tcDisplayElement = null;
   let _playButtonElement = null;
   let _stateListeners = [];
+  let _timeUpdateRaf = null; // requestAnimationFrame ID für Throttling (Fix #161)
 
   // Benannte Handler auf Modul-Ebene für sauberes Cleanup (Fix #93)
   let _onTimeUpdate = null;
@@ -239,7 +240,14 @@ const VideoPlayer = (() => {
     }
 
     // Benannte Handler definieren für späteres Cleanup (Fix #93)
-    _onTimeUpdate = () => updateTcDisplay();
+    // requestAnimationFrame-Throttling: DOM-Updates max 1x pro Frame (Fix #161)
+    _onTimeUpdate = () => {
+      if (_timeUpdateRaf) return;
+      _timeUpdateRaf = requestAnimationFrame(() => {
+        _timeUpdateRaf = null;
+        updateTcDisplay();
+      });
+    };
     _onPlay = _setButtonToPause;
     _onPause = _setButtonToPlay;
 
@@ -282,6 +290,12 @@ const VideoPlayer = (() => {
     }
     if (_playButtonElement) {
       _playButtonElement.removeEventListener('click', togglePlayPause);
+    }
+
+    // Pending RAF abbrechen (Fix #161)
+    if (_timeUpdateRaf) {
+      cancelAnimationFrame(_timeUpdateRaf);
+      _timeUpdateRaf = null;
     }
 
     // Handler-Referenzen zurücksetzen

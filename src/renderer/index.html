@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; font-src 'self'; img-src 'self' data: file:; media-src 'self' file:;" />
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self'; font-src 'self'; img-src 'self' data: file:; media-src 'self' file:;" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>ShotSheetEditor</title>
 
@@ -72,12 +72,12 @@
         </div>
       </div>
 
-      <div style="flex: 1;"></div>
+      <div class="spacer"></div>
 
       <div class="toolbar-group toolbar-group-end">
         <button class="tb-btn" id="btnExport" title="Export (Ctrl+E)">
           <span>Export</span>
-          <span style="margin-left: 4px; opacity: 0.6;">▼</span>
+          <span class="export-caret">▼</span>
         </button>
         <button class="tb-btn" id="btnTheme" title="Toggle Theme">
           <span id="themeIcon">●</span>
@@ -174,7 +174,7 @@
   </div>
 
   <!-- SELECTION BAR (appears when shots selected) -->
-  <div class="selection-bar" id="selectionBar" style="display: none;">
+  <div class="selection-bar hidden" id="selectionBar">
     <div class="selection-bar-content">
       <span id="selectionCount">0 selected</span>
       <button class="sb-btn" id="btnMarkFav">★ Mark Favorite</button>
@@ -191,11 +191,11 @@
   <div id="contextMenuContainer"></div>
 
   <!-- PROGRESS OVERLAY (for detection/export) -->
-  <div class="progress-overlay" id="progressOverlay" style="display: none;">
+  <div class="progress-overlay hidden" id="progressOverlay">
     <div class="progress-content">
       <div class="progress-title" id="progressTitle">Processing...</div>
       <div class="progress-bar">
-        <div class="progress-bar-fill" id="progressBarFill" style="width: 0%;"></div>
+        <div class="progress-bar-fill" id="progressBarFill"></div>
       </div>
       <div class="progress-text" id="progressText">0%</div>
       <button class="btn-ghost" id="btnCancelProgress">Cancel</button>

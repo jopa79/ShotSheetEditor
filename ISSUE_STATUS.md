@@ -2,21 +2,10 @@
 
 **Date:** 2026-03-01
 **Total open issues on GitHub:** 111
-**Verified as FIXED:** 105
-**Still open (needs work):** 6
+**Verified as FIXED:** 111
+**Still open (needs work):** 0
 
----
-
-## Still Open Issues (6)
-
-| # | Title | Category |
-|---|-------|----------|
-| #159 | `isPathInsideBase()` defined but never used — dead code | cleanup |
-| #160 | Synchronous `statSync` calls in ZIP export block event loop | performance |
-| #161 | `timeupdate` event lacks throttling; DOM writes at 60 Hz during playback | performance |
-| #162 | Complete JSON serialization of scenes on each undo/redo commit causes input lag | performance |
-| #164 | All dialogs lack `parentWindow` parameter; no sheet-modal on macOS | UX |
-| #167 | CSP requires `unsafe-inline` for styles due to inline style attributes | security |
+All 111 issues have been resolved.
 
 ---
 

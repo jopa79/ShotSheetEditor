@@ -294,9 +294,9 @@ const App = (() => {
         if (title) title.textContent = 'Transcoding Proxy...';
         if (barFill) barFill.style.width = '0%';
         if (text) text.textContent = '0%';
-        overlay.style.display = '';
+        overlay.classList.remove('hidden');
       } else {
-        overlay.style.display = 'none';
+        overlay.classList.add('hidden');
       }
     });
 
