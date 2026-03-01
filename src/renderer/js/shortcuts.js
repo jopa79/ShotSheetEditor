@@ -18,6 +18,9 @@ const Shortcuts = (() => {
    * Handle keydown event
    */
   const _handleKeydown = (event) => {
+    // Guard: Shortcut-Handler nur aktiv wenn Modul initialisiert (#169)
+    if (!_isInitialized) return;
+
     // Check if target is input/textarea (don't intercept in these)
     const target = event.target;
     if (
@@ -35,7 +38,7 @@ const Shortcuts = (() => {
       // Cmd/Ctrl+O: Open Video
       case _isCmdCtrl(event) && event.key === 'o':
         event.preventDefault();
-        document.querySelector('[data-action="open-video"]')?.click();
+        Toolbar.openVideo();
         break;
 
       // Cmd/Ctrl+Z: Undo
@@ -66,9 +69,10 @@ const Shortcuts = (() => {
         SelectionManager.deselectAll();
         break;
 
-      // Delete/Backspace: Delete Selected
+      // Delete/Backspace: Delete Selected — nicht wenn ein Modal offen ist (#124)
       case event.key === 'Delete' || event.key === 'Backspace':
         event.preventDefault();
+        if (document.querySelector('.modal-backdrop')) break;
         SelectionManager.deleteSelected();
         break;
 
@@ -100,9 +104,10 @@ const Shortcuts = (() => {
         VideoPlayer.nextShot();
         break;
 
-      // Space: Play/Pause
+      // Space: Play/Pause — nicht wenn ein Modal offen ist (#136)
       case event.key === ' ':
         event.preventDefault();
+        if (document.querySelector('.modal-backdrop')) break;
         VideoPlayer.togglePlayPause();
         break;
 
@@ -136,13 +141,18 @@ const Shortcuts = (() => {
         SelectionManager.invertSelection();
         break;
 
-      // V: Toggle Filter
+      // V: Toggle Filter — bei Collection-Filter zurück zu 'all' und activeCollectionId löschen (#137)
       case event.key === 'v' || event.key === 'V': {
         event.preventDefault();
         const current = AppState.get('filterMode');
-        AppState.setState({
-          filterMode: current === 'all' ? 'favorites' : 'all',
-        });
+        if (current === 'collection') {
+          // Collection-Filter aufheben → zurück zu 'all'
+          AppState.setState({ filterMode: 'all', activeCollectionId: null });
+        } else {
+          AppState.setState({
+            filterMode: current === 'all' ? 'favorites' : 'all',
+          });
+        }
         break;
       }
 

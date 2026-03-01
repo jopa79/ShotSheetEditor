@@ -82,6 +82,15 @@ function generateProxy(inputPath, duration, onProgress) {
       return;
     }
 
+    // Validiere inputPath gegen homeDir/tmpDir — verhindert Path-Traversal (fix #120)
+    const safeInputPath = path.resolve(inputPath);
+    const homeDir = os.homedir();
+    const tmpDirPath = os.tmpdir();
+    if (!safeInputPath.startsWith(homeDir + path.sep) && !safeInputPath.startsWith(tmpDirPath + path.sep)) {
+      resolve({ success: false, error: 'Access denied: video path outside allowed directories' });
+      return;
+    }
+
     // Prüfen ob Proxy bereits existiert
     const existingProxy = getExistingProxy(inputPath);
     if (existingProxy) {

@@ -3,18 +3,21 @@
  */
 
 /**
- * Format seconds to HH:MM:SS.FF timecode (30fps)
- * @param {number} seconds - Time in seconds
- * @returns {string} Formatted timecode
+ * Format seconds to HH:MM:SS.FF timecode
+ * @param {number} seconds - Zeit in Sekunden
+ * @param {number} fps - Framerate (Standard: 30fps)
+ * @returns {string} Formatierter Timecode
  */
-function formatTimecode(seconds) {
-  if (!Number.isFinite(seconds)) {
+function formatTimecode(seconds, fps = 30) {
+  if (!Number.isFinite(seconds) || fps <= 0) {
     return '00:00:00.00';
   }
 
-  const totalFrames = Math.round(seconds * 30); // 30fps
-  const frames = totalFrames % 30;
-  const totalSeconds = Math.floor(totalFrames / 30);
+  // fps als ganzzahligen Wert sichern
+  const safeFps = Math.round(fps);
+  const totalFrames = Math.round(seconds * safeFps);
+  const frames = totalFrames % safeFps;
+  const totalSeconds = Math.floor(totalFrames / safeFps);
   const hours = Math.floor(totalSeconds / 3600);
   const minutes = Math.floor((totalSeconds % 3600) / 60);
   const secs = totalSeconds % 60;

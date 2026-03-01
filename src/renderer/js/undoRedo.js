@@ -27,6 +27,7 @@ const UndoRedo = (() => {
       favoriteIndices: _deepClone(AppState.get('favoriteIndices')),
       deletedIndices: _deepClone(AppState.get('deletedIndices')),
       scenes: _deepClone(AppState.get('scenes')),
+      collections: _deepClone(AppState.get('collections')),
     };
   };
 
@@ -39,6 +40,7 @@ const UndoRedo = (() => {
       favoriteIndices: _deepClone(snapshot.favoriteIndices),
       deletedIndices: _deepClone(snapshot.deletedIndices),
       scenes: _deepClone(snapshot.scenes),
+      collections: _deepClone(snapshot.collections || []),
     });
   };
 

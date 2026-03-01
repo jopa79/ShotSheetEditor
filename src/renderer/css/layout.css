@@ -91,7 +91,6 @@
 .shot-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
-  grid-auto-rows: 120px;
   gap: var(--sp-md);
   padding: var(--sp-lg);
   overflow-y: auto;
@@ -103,28 +102,24 @@
 /* Grid Size Variants */
 .shot-grid.grid-small {
   grid-template-columns: repeat(auto-fill, minmax(80px, 1fr));
-  grid-auto-rows: 80px;
   gap: var(--sp-sm);
   padding: var(--sp-md);
 }
 
 .shot-grid.grid-medium {
   grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
-  grid-auto-rows: 100px;
   gap: var(--sp-md);
   padding: var(--sp-lg);
 }
 
 .shot-grid.grid-large {
   grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
-  grid-auto-rows: 120px;
   gap: var(--sp-md);
   padding: var(--sp-lg);
 }
 
 .shot-grid.grid-xlarge {
   grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
-  grid-auto-rows: 160px;
   gap: var(--sp-lg);
   padding: var(--sp-xl);
 }

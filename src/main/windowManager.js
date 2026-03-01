@@ -99,6 +99,27 @@ async function createMainWindow() {
     try {
       // Load saved window state or use defaults
       const savedState = loadWindowState();
+
+      // Fenster-Position validieren — verhindert off-screen nach Monitor-Trennung (fix #113)
+      if (savedState && (savedState.x !== undefined || savedState.y !== undefined)) {
+        const { screen } = require('electron');
+        const displays = screen.getAllDisplays();
+        const isOnScreen = displays.some((display) => {
+          const bounds = display.bounds;
+          return (
+            savedState.x >= bounds.x - 100 &&
+            savedState.y >= bounds.y - 100 &&
+            savedState.x < bounds.x + bounds.width &&
+            savedState.y < bounds.y + bounds.height
+          );
+        });
+        if (!isOnScreen) {
+          // Fenster-Position zurücksetzen, Größe beibehalten
+          delete savedState.x;
+          delete savedState.y;
+        }
+      }
+
       const windowOptions = {
         ...(savedState || {}),
         width: savedState?.width || WINDOW_DEFAULTS.width,
@@ -127,6 +148,15 @@ async function createMainWindow() {
         reject(error);
       });
 
+      // Fallback: wenn ready-to-show nach 10s nicht kommt, Fenster trotzdem anzeigen (fix #102)
+      const showTimeout = setTimeout(() => {
+        if (mainWindow && !mainWindow.isDestroyed() && !mainWindow.isVisible()) {
+          console.warn('WindowManager: ready-to-show timeout, forcing show');
+          mainWindow.show();
+          resolve(mainWindow);
+        }
+      }, 10000);
+
       // Prevent navigation away from the app
       mainWindow.webContents.on('will-navigate', (event) => {
         event.preventDefault();
@@ -139,6 +169,7 @@ async function createMainWindow() {
 
       // Show window when ready
       mainWindow.once('ready-to-show', () => {
+        clearTimeout(showTimeout);
         if (savedState?.isMaximized) {
           mainWindow.maximize();
         }
@@ -171,6 +202,14 @@ function getMainWindow() {
   return mainWindow;
 }
 
+// Timer aufräumen — verhindert Memory Leak beim App-Quit (fix #158)
+function cleanupWindowState() {
+  if (windowStateSaveTimer) {
+    clearTimeout(windowStateSaveTimer);
+    windowStateSaveTimer = null;
+  }
+}
+
 module.exports = {
   createMainWindow,
   getMainWindow,
@@ -178,4 +217,5 @@ module.exports = {
   setThemeSource,
   getThemeSource,
   saveWindowState,
+  cleanupWindowState,
 };

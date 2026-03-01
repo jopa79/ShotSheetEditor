@@ -8,6 +8,8 @@ const App = (() => {
   let _modalContainer = null;
   let _contextMenu = null;
   let _ipcListeners = [];
+  // Cleanup-Funktionen für StateChange-Listener in _setupTranscodingUI (#132)
+  let _transcodingCleanups = [];
 
   /**
    * Create toast notification element
@@ -16,7 +18,7 @@ const App = (() => {
    */
   const _createToastElement = (message, type = 'info') => {
     const toast = document.createElement('div');
-    toast.className = `toast toast-${type}`;
+    toast.className = `toast ${type}`;
     toast.textContent = message;
     toast.setAttribute('role', 'alert');
 
@@ -59,47 +61,51 @@ const App = (() => {
    */
   const showModal = (content, options = {}) => {
     if (!_modalContainer) {
-      _modalContainer = document.createElement('div');
-      _modalContainer.id = 'modalContainer';
-      document.body.appendChild(_modalContainer);
+      _modalContainer = document.getElementById('modalsContainer');
+      if (!_modalContainer) {
+        _modalContainer = document.createElement('div');
+        _modalContainer.id = 'modalsContainer';
+        document.body.appendChild(_modalContainer);
+      }
     }
 
+    // Backdrop = äußerstes Fullscreen-Overlay (CSS: position fixed, zentriert)
+    const backdrop = document.createElement('div');
+    backdrop.className = 'modal-backdrop';
+
+    // Modal-Dialog darin zentriert
     const modal = document.createElement('div');
     modal.className = 'modal';
 
-    const backdrop = document.createElement('div');
-    backdrop.className = 'modal-backdrop';
-    backdrop.addEventListener('click', () => {
-      if (!options.noBackdropClose) {
-        modal.remove();
-      }
-    });
-
-    const dialog = document.createElement('div');
-    dialog.className = 'modal-dialog';
-
     if (typeof content === 'string') {
-      dialog.textContent = content;
+      modal.textContent = content;
     } else {
-      dialog.appendChild(content);
+      modal.appendChild(content);
     }
 
-    // Add close button if enabled
+    // Close-Button oben rechts im Dialog
     if (options.closeButton !== false) {
       const closeBtn = document.createElement('button');
       closeBtn.className = 'modal-close';
       closeBtn.textContent = '×';
       closeBtn.addEventListener('click', () => {
-        modal.remove();
+        backdrop.remove();
       });
-      dialog.appendChild(closeBtn);
+      modal.appendChild(closeBtn);
     }
 
-    modal.appendChild(backdrop);
-    modal.appendChild(dialog);
-    _modalContainer.appendChild(modal);
+    backdrop.appendChild(modal);
 
-    return modal;
+    // Klick auf Backdrop (nicht auf Modal) schließt den Dialog
+    backdrop.addEventListener('click', (e) => {
+      if (e.target === backdrop && !options.noBackdropClose) {
+        backdrop.remove();
+      }
+    });
+
+    _modalContainer.appendChild(backdrop);
+
+    return backdrop;
   };
 
   /**
@@ -115,18 +121,18 @@ const App = (() => {
     }
 
     _contextMenu = document.createElement('div');
-    _contextMenu.className = 'context-menu';
+    _contextMenu.className = 'ctx-menu';
     _contextMenu.style.left = x + 'px';
     _contextMenu.style.top = y + 'px';
 
     for (const item of items) {
       if (item.separator) {
         const sep = document.createElement('div');
-        sep.className = 'context-menu-separator';
+        sep.className = 'ctx-menu-divider';
         _contextMenu.appendChild(sep);
       } else {
         const menuItem = document.createElement('button');
-        menuItem.className = 'context-menu-item';
+        menuItem.className = 'ctx-menu-item';
         menuItem.textContent = item.label;
 
         menuItem.addEventListener('click', (e) => {
@@ -151,9 +157,21 @@ const App = (() => {
 
     document.body.appendChild(_contextMenu);
 
-    // Close menu on outside click
+    // Viewport-Begrenzung: Menü darf nicht über den Rand hinausgehen (#163)
+    // getBoundingClientRect() funktioniert erst nach dem Append
+    const menuRect = _contextMenu.getBoundingClientRect();
+    const vpWidth = window.innerWidth;
+    const vpHeight = window.innerHeight;
+    if (x + menuRect.width > vpWidth) {
+      _contextMenu.style.left = Math.max(0, vpWidth - menuRect.width) + 'px';
+    }
+    if (y + menuRect.height > vpHeight) {
+      _contextMenu.style.top = Math.max(0, y - menuRect.height) + 'px';
+    }
+
+    // Menü bei Klick ausserhalb schliessen — null-Check nötig, da Item-Handler _contextMenu vorher auf null setzen kann (#89)
     const closeMenu = (e) => {
-      if (!_contextMenu.contains(e.target)) {
+      if (_contextMenu && !_contextMenu.contains(e.target)) {
         _contextMenu.remove();
         _contextMenu = null;
         document.removeEventListener('click', closeMenu);
@@ -178,7 +196,9 @@ const App = (() => {
     };
 
     const dragleaveHandler = (e) => {
-      if (e.target === document.body) {
+      // Nur entfernen wenn wir das Fenster wirklich verlassen — nicht bei Kindselement-Wechseln (#85)
+      // relatedTarget ist null wenn der Cursor das Fenster verlässt
+      if (!e.relatedTarget || e.relatedTarget === document.documentElement) {
         document.body.classList.remove('drag-over');
       }
     };
@@ -193,6 +213,7 @@ const App = (() => {
         if (filePath) {
           // Dateiendung prüfen bevor der volle Flow gestartet wird
           const ext = '.' + filePath.split('.').pop().toLowerCase();
+          // Muss mit SUPPORTED_FORMATS in shared/constants.js synchron gehalten werden (#165)
           const SUPPORTED_FORMATS = ['.mp4', '.mov', '.mkv', '.avi', '.mxf', '.webm'];
           if (!SUPPORTED_FORMATS.includes(ext)) {
             showToast(`Unsupported format. Supported: ${SUPPORTED_FORMATS.join(', ')}`, 'warning');
@@ -221,10 +242,10 @@ const App = (() => {
     try {
       const result = await IPC.getTheme?.();
       const theme = result?.theme || 'dark';
-      document.documentElement.setAttribute('data-theme', theme);
+      document.documentElement.classList.toggle('light-theme', theme === 'light');
     } catch (err) {
       console.error('App: Failed to load theme', err);
-      document.documentElement.setAttribute('data-theme', 'dark');
+      document.documentElement.classList.remove('light-theme');
     }
   };
 
@@ -266,8 +287,8 @@ const App = (() => {
       });
     }
 
-    // Overlay ein/ausblenden je nach Transcoding-Status
-    AppState.onStateChange('isTranscoding', (isTranscoding) => {
+    // Overlay ein/ausblenden je nach Transcoding-Status — Cleanup speichern (#132)
+    const cleanupTranscoding = AppState.onStateChange('isTranscoding', (isTranscoding) => {
       if (!overlay) return;
       if (isTranscoding) {
         if (title) title.textContent = 'Transcoding Proxy...';
@@ -279,12 +300,14 @@ const App = (() => {
       }
     });
 
-    // Fortschrittsbalken aktualisieren
-    AppState.onStateChange('transcodeProgress', (pct) => {
+    // Fortschrittsbalken aktualisieren — Cleanup speichern (#132)
+    const cleanupProgress = AppState.onStateChange('transcodeProgress', (pct) => {
       if (!AppState.get('isTranscoding')) return;
       if (barFill) barFill.style.width = `${pct}%`;
       if (text) text.textContent = `${pct}%`;
     });
+
+    _transcodingCleanups = [cleanupTranscoding, cleanupProgress];
   };
 
   /**
@@ -306,9 +329,17 @@ const App = (() => {
     });
     if (detectProgressCleanup) cleanups.push(detectProgressCleanup);
 
+    // Extract progress listener — einzelne Thumbnails progressiv aktualisieren
+    const extractProgressCleanup = IPC.onExtractProgress?.((data) => {
+      if (data?.frameResult) {
+        ShotGrid.updateThumbnail(data.frameResult.index, data.frameResult.path);
+      }
+    });
+    if (extractProgressCleanup) cleanups.push(extractProgressCleanup);
+
     // Theme changed listener
     const themeChangedCleanup = IPC.onThemeChanged?.((theme) => {
-      document.documentElement.setAttribute('data-theme', theme);
+      document.documentElement.classList.toggle('light-theme', theme === 'light');
     });
     if (themeChangedCleanup) cleanups.push(themeChangedCleanup);
 
@@ -334,6 +365,13 @@ const App = (() => {
           break;
 
         case 'file:new':
+          // Datenverlust verhindern — ungespeicherte Änderungen abfragen (#131)
+          if (AppState.get('isDirty')) {
+            const confirmed = confirm('Du hast ungespeicherte Änderungen. Neues Projekt ohne Speichern erstellen?');
+            if (!confirmed) break;
+          }
+          // Video pausieren und entladen bevor State zurückgesetzt wird
+          VideoPlayer.pauseAndReset?.();
           AppState.resetState();
           UndoRedo.clear();
           showToast('New project created', 'info');
@@ -421,6 +459,7 @@ const App = (() => {
       SelectionManager.init();
       Toolbar.init();
       Shortcuts.init();
+      InfoPanel.init();
 
       console.log('App: All modules initialized');
     } catch (err) {
@@ -456,6 +495,7 @@ const App = (() => {
     SelectionManager.cleanup();
     Toolbar.cleanup();
     Shortcuts.cleanup();
+    InfoPanel.cleanup();
 
     // Cleanup drag & drop listeners
     if (_dragDropCleanup) {
@@ -468,6 +508,10 @@ const App = (() => {
       if (fn) fn();
     });
     _ipcListeners = [];
+
+    // Cleanup Transcoding-StateChange-Listener (#132)
+    _transcodingCleanups.forEach((fn) => { if (fn) fn(); });
+    _transcodingCleanups = [];
   };
 
   // Make helper functions globally available

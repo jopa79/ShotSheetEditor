@@ -16,6 +16,21 @@ function isPathInsideBase(basePath, targetPath) {
 function exportSequence(videoPath, startTime, endTime, outputPath, codec, onProgress) {
   return new Promise((resolve) => {
     try {
+      // Path-Traversal-Schutz: Pfade gegen homeDir/tmpDir validieren (fix #117)
+      const os = require('os');
+      const homeDir = os.homedir();
+      const tmpDir = os.tmpdir();
+      const resolvedVideoPath = path.resolve(videoPath);
+      const resolvedOutputPath = path.resolve(outputPath);
+      if (!resolvedVideoPath.startsWith(homeDir + path.sep) && !resolvedVideoPath.startsWith(tmpDir + path.sep)) {
+        resolve({ success: false, error: 'Access denied: video path outside allowed directories' });
+        return;
+      }
+      if (!resolvedOutputPath.startsWith(homeDir + path.sep)) {
+        resolve({ success: false, error: 'Access denied: output path must be within home directory' });
+        return;
+      }
+
       // Validate paths
       const outputDir = path.dirname(outputPath);
       if (!fs.existsSync(outputDir)) {
@@ -33,6 +48,12 @@ function exportSequence(videoPath, startTime, endTime, outputPath, codec, onProg
       }
 
       const codecPreset = EXPORT_CODECS[codec] || EXPORT_CODECS.H264;
+
+      // Ungültige Zeitbereiche abfangen — verhindert NaN/negative Duration (fix #129)
+      if (!Number.isFinite(startTime) || !Number.isFinite(endTime) || endTime <= startTime) {
+        resolve({ success: false, error: 'Invalid time range: start must be before end' });
+        return;
+      }
       const duration = endTime - startTime;
 
       const args = [
@@ -117,24 +138,14 @@ function exportZip(thumbnailPaths, outputPath, onProgress) {
       const output = fs.createWriteStream(outputPath);
       const archive = archiver('zip', { zlib: { level: 6 } });
 
-      let totalSize = 0;
-      let addedSize = 0;
-      let resolved = false;
+      let resolvedFlag = false;
 
       const safeResolve = (result) => {
-        if (!resolved) {
-          resolved = true;
+        if (!resolvedFlag) {
+          resolvedFlag = true;
           resolve(result);
         }
       };
-
-      // Calculate total size for progress
-      thumbnailPaths.forEach((thumbPath) => {
-        if (fs.existsSync(thumbPath)) {
-          const stats = fs.statSync(thumbPath);
-          totalSize += stats.size;
-        }
-      });
 
       output.on('close', () => {
         safeResolve({
@@ -151,18 +162,14 @@ function exportZip(thumbnailPaths, outputPath, onProgress) {
         });
       });
 
-      archive.on('entry', (entry) => {
-        if (fs.existsSync(entry.sourcePath)) {
-          const stats = fs.statSync(entry.sourcePath);
-          addedSize += stats.size;
-
-          if (onProgress && totalSize > 0) {
-            onProgress({
-              progress: (addedSize / totalSize) * 100,
-              addedSize,
-              totalSize,
-            });
-          }
+      // archive.on('entry') liefert kein entry.sourcePath — stattdessen 'progress' verwenden (fix #92)
+      archive.on('progress', (progressData) => {
+        if (onProgress && progressData.fs.totalBytes > 0) {
+          onProgress({
+            progress: (progressData.fs.processedBytes / progressData.fs.totalBytes) * 100,
+            processedBytes: progressData.fs.processedBytes,
+            totalBytes: progressData.fs.totalBytes,
+          });
         }
       });
 

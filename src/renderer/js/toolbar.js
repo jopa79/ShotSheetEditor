@@ -36,6 +36,8 @@ const Toolbar = (() => {
    * @param {number} duration - Video-Dauer in Sekunden
    */
   const _generateAndLoadProxy = async (filePath, duration) => {
+    // Vorheriges Video stoppen bevor Transcoding startet (Fix #147)
+    VideoPlayer.pauseAndReset?.();
     AppState.setState({ isTranscoding: true, transcodeProgress: 0 });
 
     const result = await IPC.generateProxy(filePath, duration);
@@ -52,7 +54,6 @@ const Toolbar = (() => {
       await VideoPlayer.loadVideo(result.proxyPath);
       const cached = result.cached ? ' (cached)' : '';
       showToast(`Proxy loaded${cached}`, 'success');
-      _handleDetectScenes();
     } else {
       const errorMsg = result?.error || 'Transcoding failed';
       showToast(errorMsg, 'error');
@@ -79,6 +80,9 @@ const Toolbar = (() => {
         return;
       }
 
+      // Fallback-Projektverzeichnis: Video-Verzeichnis wenn kein Projekt geladen
+      const videoDir = filePath.substring(0, filePath.lastIndexOf('/')) || filePath.substring(0, filePath.lastIndexOf('\\'));
+
       // State zurücksetzen für neues Video
       AppState.setState({
         videoPath: filePath,
@@ -88,7 +92,7 @@ const Toolbar = (() => {
         favoriteIndices: [],
         deletedIndices: [],
         currentShotIdx: -1,
-        projectPath: null,
+        projectPath: videoDir,
         isDirty: true,
       });
       UndoRedo.clear();
@@ -96,11 +100,15 @@ const Toolbar = (() => {
       // Codec-Check: Main-Prozess entscheidet ob Proxy nötig ist
       const duration = meta.data?.duration || 0;
 
+      // Guard: Prüfen ob zwischenzeitlich ein anderes Video geöffnet wurde (Fix #125)
+      if (AppState.get('videoPath') !== filePath) return;
+
       if (!meta.data?.needsProxy) {
         try {
           await VideoPlayer.loadVideo(filePath);
+          // Guard nochmal prüfen nach await (Fix #125)
+          if (AppState.get('videoPath') !== filePath) return;
           showToast('Video loaded successfully', 'success');
-          _handleDetectScenes();
           return;
         } catch (loadErr) {
           // Chromium kann das Video trotz kompatiblem Codec nicht abspielen
@@ -108,6 +116,9 @@ const Toolbar = (() => {
           console.warn('Toolbar: Direct load failed, falling back to proxy:', loadErr.message);
         }
       }
+
+      // Guard vor Proxy-Start (Fix #125)
+      if (AppState.get('videoPath') !== filePath) return;
 
       // Proxy nötig → Transcoding starten
       await _generateAndLoadProxy(filePath, duration);
@@ -142,10 +153,18 @@ const Toolbar = (() => {
           selectedIndices: [],
           favoriteIndices: [],
           deletedIndices: [],
+          collections: [],
+          activeCollectionId: null,
           currentShotIdx: scenes.length > 0 ? 0 : -1,
+          isDirty: true, // Scene Detection macht Projekt dirty (Fix #98/#130)
         });
 
         showToast(`Detected ${scenes.length} scenes`, 'success');
+
+        // Thumbnails extrahieren nachdem Szenen im State gesetzt sind
+        if (scenes.length > 0) {
+          VideoPlayer.extractThumbs();
+        }
       } else {
         showToast('No scenes detected', 'warning');
       }
@@ -168,8 +187,10 @@ const Toolbar = (() => {
 
   /**
    * Handle Threshold slider release (commit & re-detect)
+   * Fix #126: Guard verhindert Re-Detect während Detection bereits läuft
    */
   const _handleThresholdCommit = () => {
+    if (AppState.get('isDetecting')) return; // Guard: kein Re-Detect während Detection läuft
     if (AppState.get('videoPath') && AppState.get('scenes')?.length > 0) {
       _handleDetectScenes();
     }
@@ -269,6 +290,7 @@ const Toolbar = (() => {
         scenes: AppState.get('scenes'),
         favoriteIndices: AppState.get('favoriteIndices'),
         deletedIndices: AppState.get('deletedIndices'),
+        collections: AppState.get('collections'),
         settings: {
           threshold: AppState.get('threshold'),
           gridSize: AppState.get('gridSize'),
@@ -361,17 +383,32 @@ const Toolbar = (() => {
       });
     }
 
+    // Filter-Pills synchronisieren mit filterMode-State (Fix #6e)
+    const _syncFilterPills = (group) => {
+      const currentMode = AppState.get('filterMode');
+      group.querySelectorAll('[data-filter]').forEach((b) => {
+        const btnMode = b.dataset.filter === 'favs' ? 'favorites' : 'all';
+        b.classList.toggle('active', btnMode === currentMode);
+      });
+    };
+
     // Filter pill buttons
     const filterGroup = document.querySelector('#filterGroup');
     if (filterGroup) {
       filterGroup.querySelectorAll('[data-filter]').forEach((btn) => {
         btn.addEventListener('click', () => {
-          AppState.setState({ filterMode: btn.dataset.filter === 'favs' ? 'favorites' : 'all' });
-          filterGroup.querySelectorAll('[data-filter]').forEach((b) => {
-            b.classList.toggle('active', b === btn);
-          });
+          const filterVal = btn.dataset.filter === 'favs' ? 'favorites' : 'all';
+          AppState.setState({ filterMode: filterVal });
+          _syncFilterPills(filterGroup); // Sofort sync nach Klick
         });
       });
+
+      // State-Listener für externe filterMode-Änderungen (z.B. via V-Shortcut)
+      const filterModeCleanup = AppState.onStateChange('filterMode', () => {
+        _syncFilterPills(filterGroup);
+      });
+      _stateListeners.push(filterModeCleanup);
+      _syncFilterPills(filterGroup); // Initial sync
     }
 
     // Export button
@@ -401,7 +438,7 @@ const Toolbar = (() => {
       });
     }
 
-    // State listeners
+    // State listener für isDetecting (Button-Zustand)
     const isDetectingCleanup = AppState.onStateChange?.('isDetecting', (isDetecting) => {
       if (_detectButton) {
         _detectButton.disabled = isDetecting;
@@ -409,7 +446,10 @@ const Toolbar = (() => {
       }
     });
 
-    _stateListeners = [isDetectingCleanup].filter(Boolean);
+    // Alle State-Listener sammeln — filterModeCleanup wurde bereits via push() hinzugefügt
+    if (isDetectingCleanup) {
+      _stateListeners.push(isDetectingCleanup);
+    }
 
     // Initial states
     _updateUndoRedoButtons();
