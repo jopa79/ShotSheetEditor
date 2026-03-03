@@ -7,6 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+- dialogManager: Alle Dialog-Funktionen akzeptieren optionalen `parentWindow` Parameter fuer macOS Sheet-Modals (#164)
+- videoActions/shortcuts: `register*`-Funktionen akzeptieren `null` zum sauberen Deregistrieren
+
+### Fixed
+- proxyGenerator: Race Condition — laufendes Transcoding wird vor neuem Prozess abgebrochen (#122)
+- VideoPlayer: Memory Leak — Cleanup nullt globale Refs statt No-Op-Funktionen zu registrieren (#93)
+- windowManager: `cleanupWindowState()` wird bei App-Quit aufgerufen — verhindert Timer-Leak (#158)
+
+### Security
+- Symlink-Bypass: `path.resolve()` durch `fs.realpathSync()` ersetzt in EXPORT_SEQUENCE, PROJECT_OPEN, PROXY_GENERATE, exportManager und proxyGenerator (#88)
+
+### Removed
+- exportManager: Dead-Code-Funktion `isPathInsideBase()` entfernt (#159)
+
 ### Added
 - Grid Aspect Ratio: Shot-Karten respektieren das Video-Seitenverhältnis per CSS `aspect-ratio`
 - ShotGrid: `_updateCardClasses()` für differential CSS-Updates ohne DOM-Rebuild (#68, #82)
