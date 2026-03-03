@@ -64,8 +64,17 @@ export function generateProxy(
       return
     }
 
-    // Path-Traversal-Schutz (fix #120)
-    const safeInputPath = path.resolve(inputPath)
+    // Laufendes Transcoding abbrechen bevor neuer Prozess startet (fix #122)
+    cancelTranscoding()
+
+    // Path-Traversal-Schutz — Symlink-sicher (fix #88, #120)
+    let safeInputPath: string
+    try {
+      safeInputPath = fs.realpathSync(inputPath)
+    } catch {
+      resolve({ success: false, error: 'Access denied: video path not found' })
+      return
+    }
     const homeDir = os.homedir()
     const tmpDirPath = os.tmpdir()
     if (

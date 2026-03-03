@@ -207,9 +207,14 @@ export function registerIpcHandlers(getMainWindow: WindowGetter): void {
   ipcMain.handle(
     IPC_CHANNELS.PROJECT_OPEN,
     wrapHandler(async (_event, projectPath) => {
-      // Path-Traversal-Schutz (fix #118)
+      // Path-Traversal-Schutz — Symlink-sicher (fix #88, #118)
       const homeDir = os.homedir()
-      const resolved = path.resolve(projectPath as string)
+      let resolved: string
+      try {
+        resolved = fs.realpathSync(projectPath as string)
+      } catch {
+        return { success: false, error: 'Access denied: project path not found' }
+      }
       if (!resolved.startsWith(homeDir + path.sep)) {
         return {
           success: false,
@@ -244,20 +249,31 @@ export function registerIpcHandlers(getMainWindow: WindowGetter): void {
         codec: string
       }
 
-      // Path-Traversal-Schutz (fix #117)
+      // Path-Traversal-Schutz — Symlink-sicher (fix #88, #117)
       const homeDir = os.homedir()
       const tmpDir = os.tmpdir()
-      const safeVideoPath = path.resolve(videoPath)
-      const safeOutputPath = path.resolve(outputPath)
+      let safeVideoPath: string
+      try {
+        safeVideoPath = fs.realpathSync(videoPath)
+      } catch {
+        return { success: false, error: 'Access denied: video path not found' }
+      }
       if (
         !safeVideoPath.startsWith(homeDir + path.sep) &&
         !safeVideoPath.startsWith(tmpDir + path.sep)
       ) {
         return { success: false, error: 'Access denied: video path outside allowed directories' }
       }
+      // Output-Pfad existiert noch nicht — Verzeichnis pruefen
+      let safeOutputDir: string
+      try {
+        safeOutputDir = fs.realpathSync(path.dirname(outputPath))
+      } catch {
+        return { success: false, error: 'Access denied: output directory not found' }
+      }
       if (
-        !safeOutputPath.startsWith(homeDir + path.sep) &&
-        !safeOutputPath.startsWith(tmpDir + path.sep)
+        !safeOutputDir.startsWith(homeDir + path.sep) &&
+        !safeOutputDir.startsWith(tmpDir + path.sep)
       ) {
         return { success: false, error: 'Access denied: output path outside allowed directories' }
       }
@@ -283,7 +299,8 @@ export function registerIpcHandlers(getMainWindow: WindowGetter): void {
 
   ipcMain.handle(IPC_CHANNELS.EXPORT_SELECT_DIR, async () => {
     try {
-      const result = await showExportDirDialog()
+      const win = getMainWindow()
+      const result = await showExportDirDialog(win || undefined)
       if (result.canceled) {
         return { success: false, error: 'Canceled' }
       }
@@ -330,10 +347,11 @@ export function registerIpcHandlers(getMainWindow: WindowGetter): void {
     }
   })
 
-  // Dialoge
+  // Dialoge — parentWindow fuer macOS Sheet-Modal (fix #164)
   ipcMain.handle(IPC_CHANNELS.DIALOG_OPEN_VIDEO, async () => {
     try {
-      const result = await showOpenVideoDialog()
+      const win = getMainWindow()
+      const result = await showOpenVideoDialog(win || undefined)
       if (result.canceled) {
         return { success: false, error: 'Canceled' }
       }
@@ -349,10 +367,15 @@ export function registerIpcHandlers(getMainWindow: WindowGetter): void {
     wrapHandler(async (_event, params) => {
       const { videoPath, duration } = params as { videoPath: string; duration: number }
 
-      // Path-Traversal-Schutz (fix #120)
+      // Path-Traversal-Schutz — Symlink-sicher (fix #88, #120)
       const homeDir = os.homedir()
       const tmpDir = os.tmpdir()
-      const safeVideoPath = path.resolve(videoPath)
+      let safeVideoPath: string
+      try {
+        safeVideoPath = fs.realpathSync(videoPath)
+      } catch {
+        return { success: false, error: 'Access denied: video path not found' }
+      }
       if (
         !safeVideoPath.startsWith(homeDir + path.sep) &&
         !safeVideoPath.startsWith(tmpDir + path.sep)
@@ -373,7 +396,8 @@ export function registerIpcHandlers(getMainWindow: WindowGetter): void {
 
   ipcMain.handle(IPC_CHANNELS.DIALOG_UNSAVED_CHANGES, async () => {
     try {
-      const response = await showUnsavedChangesDialog()
+      const win = getMainWindow()
+      const response = await showUnsavedChangesDialog(win || undefined)
       return { success: true, response }
     } catch (error) {
       return { success: false, error: (error as Error).message }

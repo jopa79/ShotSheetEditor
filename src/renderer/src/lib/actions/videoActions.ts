@@ -28,13 +28,13 @@ type PauseAndResetFn = () => void
 let _loadVideoFn: LoadVideoFn | null = null
 let _pauseAndResetFn: PauseAndResetFn | null = null
 
-/** VideoPlayer registriert seine loadVideo-Funktion */
-export function registerLoadVideo(fn: LoadVideoFn): void {
+/** VideoPlayer registriert seine loadVideo-Funktion (null = deregistrieren) */
+export function registerLoadVideo(fn: LoadVideoFn | null): void {
   _loadVideoFn = fn
 }
 
-/** VideoPlayer registriert seine pauseAndReset-Funktion */
-export function registerPauseAndReset(fn: PauseAndResetFn): void {
+/** VideoPlayer registriert seine pauseAndReset-Funktion (null = deregistrieren) */
+export function registerPauseAndReset(fn: PauseAndResetFn | null): void {
   _pauseAndResetFn = fn
 }
 

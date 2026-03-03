@@ -1,11 +1,11 @@
-import { dialog } from 'electron'
+import { dialog, type BrowserWindow } from 'electron'
 import path from 'path'
 import { SUPPORTED_FORMATS } from '../shared/constants'
 
-// Video-Oeffnen Dialog
-export function showOpenVideoDialog() {
-  return dialog.showOpenDialog({
-    properties: ['openFile'],
+// Video-Oeffnen Dialog — parentWindow fuer macOS Sheet-Modal (fix #164)
+export function showOpenVideoDialog(parentWindow?: BrowserWindow) {
+  const options = {
+    properties: ['openFile'] as const,
     filters: [
       {
         name: 'Video Files',
@@ -16,56 +16,70 @@ export function showOpenVideoDialog() {
         extensions: ['*'],
       },
     ],
-  })
+  }
+  return parentWindow
+    ? dialog.showOpenDialog(parentWindow, options)
+    : dialog.showOpenDialog(options)
 }
 
 // Projekt-Speichern Dialog
-export function showSaveProjectDialog() {
-  return dialog.showSaveDialog({
+export function showSaveProjectDialog(parentWindow?: BrowserWindow) {
+  const options = {
     title: 'Save Project',
     defaultPath: path.join(process.env.HOME || process.env.USERPROFILE || '', 'ShotSheetProjects'),
     filters: [
       {
         name: 'Project Folder',
-        extensions: [],
+        extensions: [] as string[],
       },
     ],
-  })
+  }
+  return parentWindow
+    ? dialog.showSaveDialog(parentWindow, options)
+    : dialog.showSaveDialog(options)
 }
 
 // Projekt-Oeffnen Dialog
-export function showOpenProjectDialog() {
-  return dialog.showOpenDialog({
+export function showOpenProjectDialog(parentWindow?: BrowserWindow) {
+  const options = {
     title: 'Open Project',
     defaultPath: path.join(process.env.HOME || process.env.USERPROFILE || '', 'ShotSheetProjects'),
-    properties: ['openDirectory'],
-  })
+    properties: ['openDirectory'] as const,
+  }
+  return parentWindow
+    ? dialog.showOpenDialog(parentWindow, options)
+    : dialog.showOpenDialog(options)
 }
 
 // Export-Verzeichnis Dialog
-export function showExportDirDialog() {
-  return dialog.showOpenDialog({
+export function showExportDirDialog(parentWindow?: BrowserWindow) {
+  const options = {
     title: 'Select Export Directory',
-    properties: ['openDirectory', 'createDirectory'],
-  })
+    properties: ['openDirectory', 'createDirectory'] as const,
+  }
+  return parentWindow
+    ? dialog.showOpenDialog(parentWindow, options)
+    : dialog.showOpenDialog(options)
 }
 
 // Ungespeicherte Aenderungen Dialog
 // Gibt zurueck: 'save' | 'discard' | 'cancel'
-export function showUnsavedChangesDialog(): Promise<string> {
-  return dialog
-    .showMessageBox({
-      type: 'question',
-      title: 'Unsaved Changes',
-      message: 'You have unsaved changes. Do you want to save them?',
-      buttons: ['Save', 'Discard', 'Cancel'],
-      defaultId: 0,
-      cancelId: 2,
-    })
-    .then((result) => {
-      const responses = ['save', 'discard', 'cancel']
-      return responses[result.response]
-    })
+export function showUnsavedChangesDialog(parentWindow?: BrowserWindow): Promise<string> {
+  const options = {
+    type: 'question' as const,
+    title: 'Unsaved Changes',
+    message: 'You have unsaved changes. Do you want to save them?',
+    buttons: ['Save', 'Discard', 'Cancel'],
+    defaultId: 0,
+    cancelId: 2,
+  }
+  const promise = parentWindow
+    ? dialog.showMessageBox(parentWindow, options)
+    : dialog.showMessageBox(options)
+  return promise.then((result) => {
+    const responses = ['save', 'discard', 'cancel']
+    return responses[result.response]
+  })
 }
 
 // Fehler-Dialog
@@ -74,13 +88,16 @@ export function showErrorDialog(title: string, message: string): void {
 }
 
 // Info-Dialog
-export function showInfoDialog(title: string, message: string) {
-  return dialog.showMessageBox({
-    type: 'info',
+export function showInfoDialog(title: string, message: string, parentWindow?: BrowserWindow) {
+  const options = {
+    type: 'info' as const,
     title,
     message,
     buttons: ['OK'],
-  })
+  }
+  return parentWindow
+    ? dialog.showMessageBox(parentWindow, options)
+    : dialog.showMessageBox(options)
 }
 
 export default {

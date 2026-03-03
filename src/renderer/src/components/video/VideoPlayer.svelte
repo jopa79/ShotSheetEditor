@@ -93,12 +93,13 @@
     registerPrevShot(prevShot)
     registerNextShot(nextShot)
 
+    // Refs nullen statt No-Ops — verhindert Memory Leak durch Closures (fix #93)
     return () => {
-      registerLoadVideo(() => Promise.resolve())
-      registerPauseAndReset(() => {})
-      registerTogglePlayPause(() => {})
-      registerPrevShot(() => {})
-      registerNextShot(() => {})
+      registerLoadVideo(null)
+      registerPauseAndReset(null)
+      registerTogglePlayPause(null)
+      registerPrevShot(null)
+      registerNextShot(null)
     }
   })
 

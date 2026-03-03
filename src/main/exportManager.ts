@@ -7,13 +7,6 @@ import { getFFmpegPath } from './ffmpegBridge'
 import { EXPORT_CODECS } from '../shared/constants'
 import type { ExportCodecKey } from '../shared/models'
 
-// Pruefen ob Pfad innerhalb eines Basisverzeichnisses liegt
-export function isPathInsideBase(basePath: string, targetPath: string): boolean {
-  const base = path.resolve(basePath)
-  const target = path.resolve(targetPath)
-  return target.startsWith(base + path.sep) || target === base
-}
-
 // Video-Sequenz (Clip) exportieren
 export function exportSequence(
   videoPath: string,
@@ -25,11 +18,16 @@ export function exportSequence(
 ): Promise<{ success: boolean; outputPath?: string; duration?: number; error?: string }> {
   return new Promise((resolve) => {
     try {
-      // Path-Traversal-Schutz (fix #117)
+      // Path-Traversal-Schutz — Symlink-sicher (fix #88, #117)
       const homeDir = os.homedir()
       const tmpDir = os.tmpdir()
-      const resolvedVideoPath = path.resolve(videoPath)
-      const resolvedOutputPath = path.resolve(outputPath)
+      let resolvedVideoPath: string
+      try {
+        resolvedVideoPath = fs.realpathSync(videoPath)
+      } catch {
+        resolve({ success: false, error: 'Access denied: video path not found' })
+        return
+      }
       if (
         !resolvedVideoPath.startsWith(homeDir + path.sep) &&
         !resolvedVideoPath.startsWith(tmpDir + path.sep)
@@ -37,7 +35,15 @@ export function exportSequence(
         resolve({ success: false, error: 'Access denied: video path outside allowed directories' })
         return
       }
-      if (!resolvedOutputPath.startsWith(homeDir + path.sep)) {
+      // Output-Pfad existiert noch nicht — Verzeichnis pruefen
+      let resolvedOutputDir: string
+      try {
+        resolvedOutputDir = fs.realpathSync(path.dirname(outputPath))
+      } catch {
+        resolve({ success: false, error: 'Access denied: output directory not found' })
+        return
+      }
+      if (!resolvedOutputDir.startsWith(homeDir + path.sep)) {
         resolve({
           success: false,
           error: 'Access denied: output path must be within home directory',
@@ -187,4 +193,4 @@ export function exportZip(
   })
 }
 
-export default { exportSequence, exportZip, isPathInsideBase }
+export default { exportSequence, exportZip }

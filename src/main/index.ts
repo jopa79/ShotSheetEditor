@@ -222,6 +222,7 @@ app.on('quit', () => {
   if (quitTimer) {
     clearTimeout(quitTimer)
   }
+  windowManager.cleanupWindowState()
   proxyGenerator.cleanupProxies()
 })
 

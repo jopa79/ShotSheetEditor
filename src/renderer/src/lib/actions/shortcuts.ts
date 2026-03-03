@@ -23,18 +23,18 @@ let _togglePlayPauseFn: VoidFn | null = null
 let _prevShotFn: VoidFn | null = null
 let _nextShotFn: VoidFn | null = null
 
-/** VideoPlayer registriert togglePlayPause */
-export function registerTogglePlayPause(fn: VoidFn): void {
+/** VideoPlayer registriert togglePlayPause (null = deregistrieren) */
+export function registerTogglePlayPause(fn: VoidFn | null): void {
   _togglePlayPauseFn = fn
 }
 
-/** VideoPlayer registriert prevShot */
-export function registerPrevShot(fn: VoidFn): void {
+/** VideoPlayer registriert prevShot (null = deregistrieren) */
+export function registerPrevShot(fn: VoidFn | null): void {
   _prevShotFn = fn
 }
 
-/** VideoPlayer registriert nextShot */
-export function registerNextShot(fn: VoidFn): void {
+/** VideoPlayer registriert nextShot (null = deregistrieren) */
+export function registerNextShot(fn: VoidFn | null): void {
   _nextShotFn = fn
 }
 
