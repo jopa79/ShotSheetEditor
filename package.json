@@ -1,13 +1,20 @@
 {
   "name": "shotsheet-editor",
-  "version": "1.0.0",
+  "version": "2.0.0-alpha.0",
   "description": "Video scene detection and shot management tool",
-  "main": "src/main/index.js",
+  "main": "./out/main/index.js",
   "scripts": {
-    "start": "electron .",
-    "build": "electron-builder",
-    "build:mac": "electron-builder --mac",
-    "build:win": "electron-builder --win"
+    "dev": "electron-vite dev",
+    "build": "electron-vite build",
+    "preview": "electron-vite preview",
+    "start": "electron-vite preview",
+    "build:mac": "electron-vite build && electron-builder --mac",
+    "build:win": "electron-vite build && electron-builder --win",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "lint": "eslint src/ tests/",
+    "format": "prettier --write \"src/**/*.{ts,svelte,css}\" \"tests/**/*.ts\""
   },
   "author": "JoPa",
   "license": "MIT",
@@ -15,7 +22,44 @@
     "archiver": "^7.0.1"
   },
   "devDependencies": {
+    "@rollup/plugin-commonjs": "^29.0.0",
+    "@sveltejs/vite-plugin-svelte": "^6.2.4",
+    "@typescript-eslint/eslint-plugin": "^8.56.1",
+    "@typescript-eslint/parser": "^8.56.1",
     "electron": "^34.5.8",
-    "electron-builder": "^26.8.1"
+    "electron-builder": "^26.8.1",
+    "electron-vite": "^5.0.0",
+    "eslint": "^10.0.2",
+    "eslint-plugin-svelte": "^3.15.0",
+    "globals": "^17.4.0",
+    "prettier": "^3.8.1",
+    "prettier-plugin-svelte": "^3.5.0",
+    "svelte": "^5.53.6",
+    "typescript": "^5.9.3",
+    "vite": "^7.3.1",
+    "vitest": "^4.0.18"
+  },
+  "build": {
+    "appId": "com.jopa.shotsheet-editor",
+    "productName": "ShotSheetEditor",
+    "directories": {
+      "output": "dist"
+    },
+    "files": [
+      "out/**/*",
+      "resources/**/*"
+    ],
+    "mac": {
+      "target": [
+        "dmg",
+        "zip"
+      ],
+      "category": "public.app-category.video"
+    },
+    "win": {
+      "target": [
+        "nsis"
+      ]
+    }
   }
 }
