@@ -155,7 +155,8 @@ export async function createMainWindow(): Promise<BrowserWindow> {
       }
 
       // Fallback: ready-to-show Timeout nach 10s (fix #102)
-      const showTimeout = setTimeout(() => {
+      let showTimeout: ReturnType<typeof setTimeout> | null = null
+      showTimeout = setTimeout(() => {
         if (mainWindow && !mainWindow.isDestroyed() && !mainWindow.isVisible()) {
           console.warn('WindowManager: ready-to-show timeout, forcing show')
           mainWindow.show()
@@ -189,6 +190,10 @@ export async function createMainWindow(): Promise<BrowserWindow> {
 
       // Aufraumen beim Schliessen
       mainWindow.on('closed', () => {
+        if (showTimeout) {
+          clearTimeout(showTimeout)
+          showTimeout = null
+        }
         saveWindowState()
         mainWindow = null
       })

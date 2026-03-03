@@ -221,7 +221,7 @@ export function registerIpcHandlers(getMainWindow: WindowGetter): void {
           error: 'Access denied: project path must be within home directory',
         }
       }
-      return openProject(projectPath as string)
+      return openProject(resolved)
     }),
   )
 

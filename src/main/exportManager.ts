@@ -177,10 +177,16 @@ export function exportZip(
       const tmpDir = os.tmpdir()
       thumbnailPaths.forEach((thumbPath) => {
         if (typeof thumbPath !== 'string') return
-        const resolved = path.resolve(thumbPath)
+        // Symlink-sichere Aufloesung (fix #88)
+        let resolved: string
+        try {
+          resolved = fs.realpathSync(thumbPath)
+        } catch {
+          return // Datei nicht gefunden — ueberspringen
+        }
         const isAllowed =
           resolved.startsWith(homeDir + path.sep) || resolved.startsWith(tmpDir + path.sep)
-        if (isAllowed && fs.existsSync(resolved)) {
+        if (isAllowed) {
           const filename = path.basename(resolved)
           archive.file(resolved, { name: filename })
         }

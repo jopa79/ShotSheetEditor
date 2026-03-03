@@ -45,25 +45,19 @@ export function setupIpcListeners(): CleanupFn {
   // Proxy-Progress
   cleanups.push(
     ipc.onProxyProgress((progress) => {
-      const pct = (progress as { progress?: number })?.progress ?? 0
-      setTranscodeProgress(pct)
+      setTranscodeProgress(progress.progress ?? 0)
     })
   )
 
   // Detection-Progress — neue Szenen progressiv
   cleanups.push(
     ipc.onDetectProgress((progress) => {
-      const p = progress as {
-        progress?: number
-        scenesDetected?: number
-        newScenes?: { index: number; startTime: number }[]
-      }
-      setDetectProgress(p?.progress ?? 0)
-      setDetectingSceneCount(p?.scenesDetected ?? 0)
+      setDetectProgress(progress.progress ?? 0)
+      setDetectingSceneCount(progress.scenesDetected ?? 0)
 
       // Neu erkannte Szenen weiterleiten
-      if (p?.newScenes && p.newScenes.length > 0 && _onDetectNewScenes) {
-        _onDetectNewScenes(p.newScenes)
+      if (progress.newScenes && progress.newScenes.length > 0 && _onDetectNewScenes) {
+        _onDetectNewScenes(progress.newScenes)
       }
     })
   )
@@ -71,9 +65,8 @@ export function setupIpcListeners(): CleanupFn {
   // Extract-Progress — einzelne Thumbnails
   cleanups.push(
     ipc.onExtractProgress((data) => {
-      const d = data as { frameResult?: { index: number; path: string } }
-      if (d?.frameResult && _onExtractProgress) {
-        _onExtractProgress(d)
+      if ((data as { frameResult?: unknown }).frameResult && _onExtractProgress) {
+        _onExtractProgress(data as { frameResult: { index: number; path: string } })
       }
     })
   )

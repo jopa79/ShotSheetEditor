@@ -24,11 +24,18 @@ export interface Scene {
 }
 
 export interface DetectionProgress {
-  percent: number
-  currentScene?: number
-  totalScenes?: number
+  progress: number
+  processedTime: number
+  totalDuration: number
+  scenesDetected: number
   /** Progressiv erkannte Szenen (V2: Realtime-Anzeige) */
-  scenes?: Scene[]
+  newScenes: DetectedSceneInfo[]
+}
+
+export interface DetectedSceneInfo {
+  index: number
+  startTime: number
+  tc?: string
 }
 
 // --- Collections ---
@@ -84,7 +91,7 @@ export interface ExportProgress {
 // --- Proxy ---
 
 export interface ProxyProgress {
-  percent: number
+  progress: number
 }
 
 // --- V2.0: Transcription ---
