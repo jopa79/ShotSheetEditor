@@ -53,6 +53,8 @@ const api: ElectronAPI = {
 
   // Dialoge
   openVideoDialog: () => ipcRenderer.invoke('dialog:openVideo'),
+  openProjectDialog: () => ipcRenderer.invoke('dialog:openProject'),
+  saveProjectDialog: () => ipcRenderer.invoke('dialog:saveProject'),
   unsavedChangesDialog: () => ipcRenderer.invoke('dialog:unsavedChanges'),
 
   // ===== Listener: Main -> Renderer =====

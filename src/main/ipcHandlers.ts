@@ -8,7 +8,7 @@ import { detectScenes, cancelDetection } from './sceneDetector'
 import { extractFrames } from './frameExtractor'
 import { exportSequence, exportZip } from './exportManager'
 import { newProject, openProject, saveProject } from './projectManager'
-import { showExportDirDialog, showOpenVideoDialog, showUnsavedChangesDialog } from './dialogManager'
+import { showExportDirDialog, showOpenVideoDialog, showOpenProjectDialog, showSaveProjectDialog, showUnsavedChangesDialog } from './dialogManager'
 import { toggleTheme, getThemeSource } from './windowManager'
 import { getFFmpegPath, validateFFmpeg } from './ffmpegBridge'
 import { needsTranscoding, generateProxy, cancelTranscoding } from './proxyGenerator'
@@ -356,6 +356,32 @@ export function registerIpcHandlers(getMainWindow: WindowGetter): void {
         return { success: false, error: 'Canceled' }
       }
       return { success: true, path: result.filePaths[0] }
+    } catch (error) {
+      return { success: false, error: (error as Error).message }
+    }
+  })
+
+  ipcMain.handle(IPC_CHANNELS.DIALOG_OPEN_PROJECT, async () => {
+    try {
+      const win = getMainWindow()
+      const result = await showOpenProjectDialog(win || undefined)
+      if (result.canceled) {
+        return { success: false, error: 'Canceled' }
+      }
+      return { success: true, path: result.filePaths[0] }
+    } catch (error) {
+      return { success: false, error: (error as Error).message }
+    }
+  })
+
+  ipcMain.handle(IPC_CHANNELS.DIALOG_SAVE_PROJECT, async () => {
+    try {
+      const win = getMainWindow()
+      const result = await showSaveProjectDialog(win || undefined)
+      if (result.canceled) {
+        return { success: false, error: 'Canceled' }
+      }
+      return { success: true, path: result.filePath }
     } catch (error) {
       return { success: false, error: (error as Error).message }
     }

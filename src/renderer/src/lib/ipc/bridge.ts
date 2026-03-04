@@ -134,6 +134,14 @@ export function openVideoDialog(): Promise<DialogResponse> {
   return api().openVideoDialog()
 }
 
+export function openProjectDialog(): Promise<DialogResponse> {
+  return api().openProjectDialog()
+}
+
+export function saveProjectDialog(): Promise<DialogResponse> {
+  return api().saveProjectDialog()
+}
+
 export function unsavedChangesDialog(): Promise<DialogResponse> {
   return api().unsavedChangesDialog()
 }

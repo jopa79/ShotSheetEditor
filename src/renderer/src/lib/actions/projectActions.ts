@@ -26,7 +26,7 @@ import {
 import { resetSelectionState, setFavoriteIndices, setDeletedIndices } from '../stores'
 import * as undoRedo from './undoRedo'
 import { showToast } from './toastManager'
-import { registerPauseAndReset } from './videoActions'
+import { openVideoFromPath, callPauseAndReset } from './videoActions'
 
 /**
  * Neues Projekt erstellen — State zurücksetzen
@@ -86,15 +86,109 @@ export async function saveProject(): Promise<void> {
 }
 
 /**
- * Save As — TODO: Dialog implementieren
+ * Save As — neuen Speicherort wählen und Projekt dort speichern
  */
 export async function saveProjectAs(): Promise<void> {
-  showToast('Save As — coming soon', 'info')
+  const videoPath = getVideoPath()
+  if (!videoPath) {
+    showToast('No video loaded — nothing to save', 'warning')
+    return
+  }
+
+  try {
+    const dialogResult = await ipc.saveProjectDialog()
+    if (!dialogResult?.success || !dialogResult.path) return
+
+    const newPath = dialogResult.path
+
+    const data = {
+      videoPath,
+      scenes: getScenes(),
+      favoriteIndices: getFavoriteIndices(),
+      deletedIndices: getDeletedIndices(),
+      collections: getCollections(),
+      threshold: getThreshold(),
+      gridSize: getGridSize(),
+    }
+
+    const result = await ipc.saveProject(newPath, data)
+    if (result?.success) {
+      setProjectPath(newPath)
+      setIsDirty(false)
+      showToast('Project saved', 'success')
+    } else {
+      showToast(result?.error ?? 'Failed to save project', 'error')
+    }
+  } catch (err) {
+    console.error('projectActions: saveProjectAs failed', err)
+    showToast('Failed to save project', 'error')
+  }
 }
 
 /**
- * Projekt öffnen — TODO: Dialog implementieren
+ * Projekt öffnen — Verzeichnis wählen, project.json laden, State befüllen
  */
 export async function openProject(): Promise<void> {
-  showToast('Open Project — coming soon', 'info')
+  // isDirty-Check — ungespeicherte Aenderungen abfragen
+  if (getIsDirty()) {
+    try {
+      const confirmResult = await ipc.unsavedChangesDialog()
+      if (!confirmResult?.success) return
+      const response = confirmResult.response as unknown as string
+      if (response === 'cancel') return
+      if (response === 'save') {
+        await saveProject()
+      }
+      // 'discard' → weiter ohne speichern
+    } catch {
+      return
+    }
+  }
+
+  try {
+    // Dialog: Projektordner wählen
+    const dialogResult = await ipc.openProjectDialog()
+    if (!dialogResult?.success || !dialogResult.path) return
+
+    // Projekt laden via Main-Process
+    const result = await ipc.openProject(dialogResult.path)
+    if (!result?.success) {
+      showToast(result?.error ?? 'Failed to open project', 'error')
+      return
+    }
+
+    const data = result.data as Record<string, unknown> | undefined
+
+    // Video stoppen + State zuruecksetzen
+    callPauseAndReset()
+    resetSelectionState()
+    undoRedo.clear()
+
+    // State aus Projektdaten befuellen (defensive Defaults)
+    const scenes = (data?.scenes as unknown[]) ?? []
+    setScenes(scenes as ReturnType<typeof getScenes>)
+    setCollections((data?.collections as ReturnType<typeof getCollections>) ?? [])
+    setFavoriteIndices((data?.favoriteIndices as number[]) ?? [])
+    setDeletedIndices((data?.deletedIndices as number[]) ?? [])
+    setThreshold((data?.threshold as number) ?? 0.3)
+    setGridSize((data?.gridSize as number) ?? 200)
+    setProjectPath(dialogResult.path)
+    setCurrentShotIdx(-1)
+    setIsDirty(false)
+
+    // Video laden (falls vorhanden)
+    const videoPath = data?.videoPath as string | undefined
+    if (videoPath) {
+      try {
+        await openVideoFromPath(videoPath, { skipStateReset: true })
+      } catch {
+        showToast('Project loaded, but video file not found', 'warning')
+      }
+    }
+
+    showToast('Project loaded', 'success')
+  } catch (err) {
+    console.error('projectActions: openProject failed', err)
+    showToast('Failed to open project', 'error')
+  }
 }

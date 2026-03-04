@@ -182,6 +182,9 @@ export function saveProject(
       return { success: false, error: 'Project path must be within home directory' }
     }
 
+    // Verzeichnis erstellen falls noetig (Save As in neuen Ordner)
+    fs.mkdirSync(projectPath, { recursive: true })
+
     const projectJsonPath = path.join(projectPath, 'project.json')
 
     // Atomic Write: Temp-Datei schreiben, dann umbenennen
