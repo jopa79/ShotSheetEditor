@@ -84,6 +84,8 @@ export interface ElectronAPI {
 
   // Dialoge
   openVideoDialog: () => Promise<DialogResponse>
+  openProjectDialog: () => Promise<DialogResponse>
+  saveProjectDialog: () => Promise<DialogResponse>
   unsavedChangesDialog: () => Promise<DialogResponse>
 
   // ===== Listener: Main -> Renderer (fire & forget) =====

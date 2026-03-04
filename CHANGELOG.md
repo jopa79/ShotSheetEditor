@@ -7,6 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- Open Project: Projektordner via Dialog oeffnen, State + Video laden
+- Save As: Projekt unter neuem Pfad speichern (inkl. Verzeichnis-Erstellung)
+- IPC-Channels `dialog:openProject` und `dialog:saveProject`
+
+## [2.0.0] - 2026-03-04
+
+### Added
+- **V2 Migration:** Komplette Neuentwicklung mit Svelte 5 + TypeScript
+- Svelte 5 Runes-basiertes State-Management (ersetzt V1 AppState)
+- Typisierte IPC-Bridge (5-Schichten-Architektur)
+- electron-vite Build-System mit Hot-Reload
+- Vitest Unit-Tests (154 Tests)
+- ESLint + Prettier Konfiguration
+
 ### Changed
 - dialogManager: Alle Dialog-Funktionen akzeptieren optionalen `parentWindow` Parameter fuer macOS Sheet-Modals (#164)
 - videoActions/shortcuts: `register*`-Funktionen akzeptieren `null` zum sauberen Deregistrieren

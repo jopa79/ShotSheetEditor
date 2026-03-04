@@ -51,12 +51,21 @@ export async function openVideo(): Promise<void> {
   }
 }
 
+/** Optionen fuer openVideoFromPath */
+interface OpenVideoOptions {
+  /** Wenn true: State-Reset ueberspringen (fuer openProject) */
+  skipStateReset?: boolean
+}
+
 /**
  * Video per Pfad laden — Metadaten holen, Codec prüfen, ggf. Proxy generieren.
- * Wird von openVideo() und Drag&Drop aufgerufen.
+ * Wird von openVideo(), Drag&Drop und openProject aufgerufen.
  * Race-Condition-Guards nach jedem await (Fix #125).
  */
-export async function openVideoFromPath(filePath: string): Promise<void> {
+export async function openVideoFromPath(
+  filePath: string,
+  options?: OpenVideoOptions,
+): Promise<void> {
   try {
     // Laufendes Transcoding abbrechen
     if (getIsTranscoding()) {
@@ -72,20 +81,26 @@ export async function openVideoFromPath(filePath: string): Promise<void> {
       return
     }
 
-    // Fallback-Projektverzeichnis
-    const videoDir =
-      filePath.substring(0, filePath.lastIndexOf('/')) ||
-      filePath.substring(0, filePath.lastIndexOf('\\'))
+    if (options?.skipStateReset) {
+      // Nur Video-Pfad und Meta setzen (openProject hat State schon befuellt)
+      setVideoPath(filePath)
+      setVideoMeta(meta)
+    } else {
+      // Fallback-Projektverzeichnis
+      const videoDir =
+        filePath.substring(0, filePath.lastIndexOf('/')) ||
+        filePath.substring(0, filePath.lastIndexOf('\\'))
 
-    // State zurücksetzen für neues Video
-    setVideoPath(filePath)
-    setVideoMeta(meta)
-    setScenes([])
-    resetSelectionState()
-    setCurrentShotIdx(-1)
-    setProjectPath(videoDir)
-    setIsDirty(true)
-    undoRedo.clear()
+      // State zurücksetzen für neues Video
+      setVideoPath(filePath)
+      setVideoMeta(meta)
+      setScenes([])
+      resetSelectionState()
+      setCurrentShotIdx(-1)
+      setProjectPath(videoDir)
+      setIsDirty(true)
+      undoRedo.clear()
+    }
 
     const duration = meta.data?.duration ?? 0
 

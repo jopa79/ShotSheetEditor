@@ -40,6 +40,8 @@ export const IPC_CHANNELS = {
 
   // Dialoge
   DIALOG_OPEN_VIDEO: 'dialog:openVideo',
+  DIALOG_OPEN_PROJECT: 'dialog:openProject',
+  DIALOG_SAVE_PROJECT: 'dialog:saveProject',
   DIALOG_UNSAVED_CHANGES: 'dialog:unsavedChanges',
 
   // Menue (Main -> Renderer)
