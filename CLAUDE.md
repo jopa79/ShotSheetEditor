@@ -109,3 +109,17 @@ Neue IPC-Methode = immer alle 5 Schichten aendern.
 - IPC-Channels: `domain:action` Format (`video:open`, `project:save`)
 - Alle IPC-Handler muessen in `wrapHandler()` gewrappt werden
 - Keine anonymen Event-Listener (fuer Cleanup)
+
+## Agent skills
+
+### Issue tracker
+
+Issues are tracked as GitHub issues in `jopa79/ShotSheetEditor` via the `gh` CLI; external PRs are not a triage surface. See `docs/agents/issue-tracker.md`.
+
+### Triage labels
+
+Canonical label vocabulary (`needs-triage`, `needs-info`, `ready-for-agent`, `ready-for-human`, `wontfix`) — each role maps to its own name. See `docs/agents/triage-labels.md`.
+
+### Domain docs
+
+Single-context layout — one `CONTEXT.md` + `docs/adr/` at the repo root. See `docs/agents/domain.md`.
