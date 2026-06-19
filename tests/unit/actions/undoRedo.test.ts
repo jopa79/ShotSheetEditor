@@ -183,4 +183,142 @@ describe('undoRedo', () => {
       expect(undoRedo.canRedo()).toBe(false)
     })
   })
+
+  describe('withUndo', () => {
+    it('nimmt Snapshot VOR der Mutation — undo stellt alten State wieder her', () => {
+      // Ausgangszustand: leer
+      // withUndo kapselt Mutation
+      undoRedo.withUndo(() => {
+        setScenes([createScene(0)])
+      })
+
+      // Nach withUndo ist ein Undo möglich
+      expect(undoRedo.canUndo()).toBe(true)
+
+      // Undo stellt leeren Ausgangszustand wieder her
+      undoRedo.undo()
+      expect(getScenes()).toEqual([])
+    })
+
+    it('gibt den Rückgabewert der Mutation-Funktion weiter', () => {
+      const result = undoRedo.withUndo(() => {
+        setScenes([createScene(0)])
+        return 42
+      })
+
+      expect(result).toBe(42)
+    })
+
+    it('löscht den Redo-Stack (konsistent mit commit())', () => {
+      // Redo-State erzeugen
+      undoRedo.commit()
+      setScenes([createScene(0)])
+      undoRedo.undo()
+      expect(undoRedo.canRedo()).toBe(true)
+
+      // withUndo löscht Redo — wie commit()
+      undoRedo.withUndo(() => {
+        setScenes([createScene(1)])
+      })
+      expect(undoRedo.canRedo()).toBe(false)
+    })
+
+    it('bei Exception in fn wird der Snapshot zurückgerollt', () => {
+      // Ausgangszustand: 1 Szene, Stack leer
+      setScenes([createScene(0)])
+      const stackLengthVorher = undoRedo.canUndo() ? 1 : 0
+
+      expect(() => {
+        undoRedo.withUndo(() => {
+          throw new Error('Mutation fehlgeschlagen')
+        })
+      }).toThrow('Mutation fehlgeschlagen')
+
+      // Stack-Länge darf sich nicht verändert haben (kein leerer Undo-Schritt)
+      const stackLengthNachher = undoRedo.canUndo() ? 1 : 0
+      expect(stackLengthNachher).toBe(stackLengthVorher)
+    })
+
+    it('bei Exception wird der Stack-Zustand exakt wiederhergestellt', () => {
+      // Zwei Commits im Stack
+      undoRedo.commit()
+      setScenes([createScene(0)])
+      undoRedo.commit()
+      setScenes([createScene(1)])
+
+      // Stack hat 2 Einträge
+      expect(undoRedo.canUndo()).toBe(true)
+
+      // Fehlerhafte withUndo darf den Stack nicht verändern
+      expect(() => {
+        undoRedo.withUndo(() => {
+          throw new Error('boom')
+        })
+      }).toThrow('boom')
+
+      // Noch immer 2 Undos möglich
+      undoRedo.undo()
+      expect(getScenes()).toHaveLength(1)
+      undoRedo.undo()
+      expect(getScenes()).toHaveLength(0)
+      expect(undoRedo.canUndo()).toBe(false)
+    })
+
+    it('bei Exception bleibt der Redo-Stack erhalten (kein Verlust nie-konsumierter Redo-Schritte)', () => {
+      // Undo-Schritt aufbauen und konsumieren → es existiert ein Redo-Schritt
+      undoRedo.withUndo(() => {
+        setScenes([createScene(0)])
+      })
+      undoRedo.undo() // erzeugt einen Redo-Eintrag, State zurück auf []
+      expect(undoRedo.canRedo()).toBe(true)
+
+      // Fehlgeschlagene withUndo darf den Redo-Stack NICHT leeren (commit() würde ihn löschen)
+      expect(() => {
+        undoRedo.withUndo(() => {
+          throw new Error('boom')
+        })
+      }).toThrow('boom')
+
+      // Redo ist weiterhin verfügbar und funktioniert korrekt
+      expect(undoRedo.canRedo()).toBe(true)
+      undoRedo.redo()
+      expect(getScenes()).toHaveLength(1)
+    })
+
+    it('bei Exception bleibt der State unverändert (Mutation hat nicht stattgefunden)', () => {
+      setScenes([createScene(0)])
+
+      expect(() => {
+        undoRedo.withUndo(() => {
+          throw new Error('Kein State-Change')
+        })
+      }).toThrow()
+
+      // State bleibt wie vorher
+      expect(getScenes()).toEqual([createScene(0)])
+    })
+
+    it('mehrfache withUndo-Aufrufe erzeugen mehrere Snapshots', () => {
+      undoRedo.withUndo(() => {
+        setScenes([createScene(0)])
+      })
+      undoRedo.withUndo(() => {
+        setScenes([createScene(0), createScene(1)])
+      })
+
+      // 2x undo möglich
+      undoRedo.undo()
+      expect(getScenes()).toHaveLength(1)
+      undoRedo.undo()
+      expect(getScenes()).toHaveLength(0)
+    })
+
+    it('withUndo mit void-Funktion gibt undefined zurück', () => {
+      const result = undoRedo.withUndo(() => {
+        setScenes([createScene(0)])
+      })
+
+      expect(result).toBeUndefined()
+    })
+  })
 })

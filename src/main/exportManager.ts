@@ -1,11 +1,11 @@
 import { spawn } from 'child_process'
 import path from 'path'
 import fs from 'fs'
-import os from 'os'
 import archiver from 'archiver'
 import { getFFmpegPath } from './ffmpegBridge'
 import { EXPORT_CODECS } from '../shared/constants'
 import type { ExportCodecKey } from '../shared/models'
+import { validateForRead, validateForWrite } from './pathSecurity'
 
 // Video-Sequenz (Clip) exportieren
 export function exportSequence(
@@ -18,40 +18,24 @@ export function exportSequence(
 ): Promise<{ success: boolean; outputPath?: string; duration?: number; error?: string }> {
   return new Promise((resolve) => {
     try {
-      // Path-Traversal-Schutz — Symlink-sicher (fix #88, #117)
-      const homeDir = os.homedir()
-      const tmpDir = os.tmpdir()
+      // Path-Traversal-Schutz — Symlink-sicher via pathSecurity-Modul (fix #88, #117)
       let resolvedVideoPath: string
       try {
-        resolvedVideoPath = fs.realpathSync(videoPath)
+        resolvedVideoPath = validateForRead(videoPath, { allowTmp: true })
       } catch {
-        resolve({ success: false, error: 'Access denied: video path not found' })
+        resolve({ success: false, error: 'Access denied: video path not found or outside allowed directories' })
         return
       }
-      if (
-        !resolvedVideoPath.startsWith(homeDir + path.sep) &&
-        !resolvedVideoPath.startsWith(tmpDir + path.sep)
-      ) {
-        resolve({ success: false, error: 'Access denied: video path outside allowed directories' })
-        return
-      }
-      // Output-Pfad existiert noch nicht — Verzeichnis pruefen
-      let resolvedOutputDir: string
+      // Output-Pfad: nur homeDir erlaubt (kein tmp fuer User-Exports)
+      let resolvedOutputPath: string
       try {
-        resolvedOutputDir = fs.realpathSync(path.dirname(outputPath))
+        resolvedOutputPath = validateForWrite(outputPath)
       } catch {
-        resolve({ success: false, error: 'Access denied: output directory not found' })
-        return
-      }
-      if (!resolvedOutputDir.startsWith(homeDir + path.sep)) {
-        resolve({
-          success: false,
-          error: 'Access denied: output path must be within home directory',
-        })
+        resolve({ success: false, error: 'Access denied: output path not found or outside home directory' })
         return
       }
 
-      const outputDir = path.dirname(outputPath)
+      const outputDir = path.dirname(resolvedOutputPath)
       if (!fs.existsSync(outputDir)) {
         resolve({ success: false, error: 'Output directory does not exist' })
         return
@@ -74,10 +58,10 @@ export function exportSequence(
 
       const args = [
         '-ss', String(startTime),
-        '-i', videoPath,
+        '-i', resolvedVideoPath,
         '-t', String(duration),
         ...codecPreset.args,
-        outputPath,
+        resolvedOutputPath,
       ]
 
       const ffmpeg = spawn(ffmpegPath, args)
@@ -101,7 +85,7 @@ export function exportSequence(
 
       ffmpeg.on('close', (code: number | null) => {
         if (code === 0) {
-          resolve({ success: true, outputPath, duration })
+          resolve({ success: true, outputPath: resolvedOutputPath, duration })
         } else {
           resolve({ success: false, error: `ffmpeg failed with code ${code}` })
         }
@@ -172,24 +156,18 @@ export function exportZip(
 
       archive.pipe(output)
 
-      // Dateien zum Archiv hinzufuegen (Pfade gegen home/tmp validieren)
-      const homeDir = os.homedir()
-      const tmpDir = os.tmpdir()
+      // Dateien zum Archiv hinzufuegen (Pfade via pathSecurity-Modul validieren, fix #88)
       thumbnailPaths.forEach((thumbPath) => {
         if (typeof thumbPath !== 'string') return
-        // Symlink-sichere Aufloesung (fix #88)
+        // Symlink-sichere Validierung — Thumbnails koennen in home oder tmp liegen
         let resolved: string
         try {
-          resolved = fs.realpathSync(thumbPath)
+          resolved = validateForRead(thumbPath, { allowTmp: true })
         } catch {
-          return // Datei nicht gefunden — ueberspringen
+          return // Datei nicht gefunden oder Zugriff verweigert — ueberspringen
         }
-        const isAllowed =
-          resolved.startsWith(homeDir + path.sep) || resolved.startsWith(tmpDir + path.sep)
-        if (isAllowed) {
-          const filename = path.basename(resolved)
-          archive.file(resolved, { name: filename })
-        }
+        const filename = path.basename(resolved)
+        archive.file(resolved, { name: filename })
       })
 
       archive.finalize()

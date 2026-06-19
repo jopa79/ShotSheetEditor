@@ -1,7 +1,6 @@
-import { spawn } from 'child_process'
 import path from 'path'
 import fs from 'fs'
-import { getFFmpegPath } from './ffmpegBridge'
+import { startJob } from './ffmpegJobManager'
 import { THUMB_SIZE } from '../shared/constants'
 import type { ThumbSize } from '../shared/models'
 
@@ -42,12 +41,6 @@ export function extractFrame(
 ): Promise<ExtractResult> {
   return new Promise((resolve) => {
     try {
-      const ffmpegPath = getFFmpegPath()
-      if (!ffmpegPath) {
-        resolve({ success: false, error: 'ffmpeg not found' })
-        return
-      }
-
       const args = [
         '-y', // Existierende Dateien ueberschreiben
         '-ss', String(timestamp),
@@ -58,25 +51,24 @@ export function extractFrame(
         outputPath,
       ]
 
-      const ffmpeg = spawn(ffmpegPath, args)
+      // Job laeuft via startJob → wird in ffmpegJobMan._activeJobs getrackt,
+      // killAll() bei App-Quit erfasst auch Frame-Extractions (kein lokales Tracking noetig).
+      const job = startJob({ type: 'extract', args })
 
-      ffmpeg.on('close', (code: number | null) => {
-        if (code === 0 && fs.existsSync(outputPath)) {
-          resolve({ success: true, path: outputPath })
-        } else {
+      job.done
+        .then(() => {
+          if (fs.existsSync(outputPath)) {
+            resolve({ success: true, path: outputPath })
+          } else {
+            resolve({ success: false, error: 'Frame-Datei fehlt nach Extraktion' })
+          }
+        })
+        .catch((err: Error) => {
           resolve({
             success: false,
-            error: `ffmpeg failed with code ${code}`,
+            error: err.message,
           })
-        }
-      })
-
-      ffmpeg.on('error', (error: Error) => {
-        resolve({
-          success: false,
-          error: error.message,
         })
-      })
     } catch (error) {
       resolve({
         success: false,

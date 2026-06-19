@@ -11,6 +11,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Open Project: Projektordner via Dialog oeffnen, State + Video laden
 - Save As: Projekt unter neuem Pfad speichern (inkl. Verzeichnis-Erstellung)
 - IPC-Channels `dialog:openProject` und `dialog:saveProject`
+- `pathSecurity.ts` — Deep Module fuer zentrale Path-Validierung im Main-Process (`validateForRead`, `validateForWrite`)
+- `themeActions.ts` — Theme-Toggle als eigene Action-Datei (IPC-Konvention)
+- `tests/helpers/fakeIpc.ts` — Test-Seam fuer `window.electronAPI`, schaltet Action-Tests frei
+- `ffmpegJobManager.ts` — Deep Module fuer zentrale FFmpeg-Prozessverwaltung (`startJob`, `JobHandle.kill()`, `killAll`)
+- Charakterisierungs-Tests fuer proxyGenerator, sceneDetector, frameExtractor (vorher ungetestet)
+- `withUndo<T>(fn: () => T): T` in `undoRedo.ts`: Kapselt Snapshot + Mutation atomar. Bei Exception in `fn` wird der Snapshot zurueckgerollt (kein leerer Undo-Schritt). Alle 11 call-sites in `selectionActions.ts` (6) und `collectionActions.ts` (5) migriert.
+
+### Changed
+- `Toolbar.svelte` ruft `themeActions.toggleTheme()` statt direkt `ipc.toggleTheme()` — letzter Komponenten-IPC-Verstoss behoben
+- `App.svelte`: `view:toggleTheme` Menu-Handler ueber `themeActions.toggleTheme()` geroutet (einheitlicher Seam)
+- 14x duplizierte Path-Validierung in allen Main-Process-Modulen durch zentrales `pathSecurity`-Modul ersetzt (ipcHandlers, proxyGenerator, exportManager, projectManager, protocolHandler)
+- proxyGenerator, sceneDetector und frameExtractor nutzen jetzt `ffmpegJobManager`; globale `let`-Prozess-Variablen eliminiert (kein Race bei schnellem Doppelklick)
+
+### Fixed
+- `frameExtractor` orphaned-process-Bug: Frame-Extractions hatten kein Process-Tracking und keinen Cancel — jetzt via `ffmpegJobManager` getrackt und bei App-Quit (`killAll`) sauber beendet
+
+### Security
+- Praefixangriff-Bug in `protocolHandler.ts` gefixt: `startsWith(homeDir)` ohne `path.sep` erlaubte `/Users/joachim-evil` als gueltigen Pfad wenn homeDir `/Users/joachim` war — jetzt path.sep-sicher via `pathSecurity`-Modul
 
 ## [2.0.0] - 2026-03-04
 

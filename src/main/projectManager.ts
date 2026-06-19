@@ -1,6 +1,7 @@
 import fs from 'fs'
 import path from 'path'
 import os from 'os'
+import { validateForRead, validateForWrite } from './pathSecurity'
 
 const PROJECT_SUBDIRS = ['thumbnails', 'exports', 'exports/sequences', 'exports/zip']
 
@@ -119,15 +120,16 @@ export function openProject(projectPath: string): ProjectResult {
       return { success: false, error: validation.error }
     }
 
-    // Pfad gegen homeDir validieren — verhindert Path-Traversal (fix #118)
-    const homeDir = os.homedir()
-    const resolvedPath = path.resolve(projectPath)
-    if (!resolvedPath.startsWith(homeDir + path.sep)) {
-      return { success: false, error: 'Access denied: project path must be within home directory' }
-    }
-
     if (!fs.existsSync(projectPath)) {
       return { success: false, error: 'Project not found' }
+    }
+
+    // Symlink-sichere Validierung gegen homeDir (fix #118): realpathSync via pathSecurity,
+    // NICHT path.resolve — sonst koennte ein Symlink innerhalb homeDir nach aussen zeigen.
+    try {
+      validateForRead(projectPath)
+    } catch {
+      return { success: false, error: 'Access denied: project path must be within home directory' }
     }
 
     const projectJsonPath = path.join(projectPath, 'project.json')
@@ -176,16 +178,22 @@ export function saveProject(
       return { success: false, error: validation.error }
     }
 
-    const homeDir = os.homedir()
-    const resolvedPath = path.resolve(projectPath)
-    if (!resolvedPath.startsWith(homeDir + path.sep)) {
+    // Schreib-Validierung via pathSecurity-Modul — Projekt-Pfad noch nicht vorhanden (Save As)
+    // Parent-Verzeichnis muss existieren; nur homeDir erlaubt
+    let resolvedProjectPath: string
+    try {
+      // Das Projektverzeichnis selbst existiert noch nicht → Parent validieren
+      resolvedProjectPath = validateForWrite(path.join(projectPath, 'project.json'))
+      // Extrahiere Projektpfad (Parent des project.json)
+      resolvedProjectPath = path.dirname(resolvedProjectPath)
+    } catch {
       return { success: false, error: 'Project path must be within home directory' }
     }
 
     // Verzeichnis erstellen falls noetig (Save As in neuen Ordner)
-    fs.mkdirSync(projectPath, { recursive: true })
+    fs.mkdirSync(resolvedProjectPath, { recursive: true })
 
-    const projectJsonPath = path.join(projectPath, 'project.json')
+    const projectJsonPath = path.join(resolvedProjectPath, 'project.json')
 
     // Atomic Write: Temp-Datei schreiben, dann umbenennen
     const tempPath = `${projectJsonPath}.tmp`

@@ -13,6 +13,7 @@ import {
   getDeletedIndices,
   setDeletedIndices,
   setIsDirty,
+  getIsDirty,
 } from '../stores'
 
 const MAX_STACK_SIZE = 50
@@ -110,4 +111,36 @@ export function canRedo(): boolean {
 export function clear(): void {
   undoStack = []
   redoStack = []
+}
+
+/**
+ * Kapselt eine State-Mutation atomar mit Undo-Snapshot.
+ * Nimmt Snapshot VOR der Mutation — bei Exception wird der Snapshot zurückgerollt,
+ * sodass kein leerer Undo-Schritt entsteht.
+ *
+ * Bevorzugte API für alle Mutations die rückgängig gemacht werden sollen.
+ * commit() bleibt als Low-Level-API für undo/redo/clear bestehen.
+ */
+export function withUndo<T>(fn: () => T): T {
+  // Vollständigen Undo/Redo-Zustand VOR commit() sichern.
+  // commit() macht drei Dinge: undoStack.push (+ evtl. shift bei vollem Stack),
+  // redoStack = [] und setIsDirty(true). Ein blosses undoStack.pop() wuerde
+  // den geleerten redoStack (verlorene Redo-Schritte!) und einen evtl. shift()
+  // NICHT zuruecksetzen — daher kompletter Zustands-Snapshot.
+  const savedUndo = [...undoStack]
+  const savedRedo = [...redoStack]
+  const savedDirty = getIsDirty()
+
+  commit()
+
+  try {
+    return fn()
+  } catch (error) {
+    // Rollback: fn hat den State nicht (vollstaendig) geaendert →
+    // gesamten Undo/Redo-Zustand wiederherstellen, kein leerer Undo-Schritt.
+    undoStack = savedUndo
+    redoStack = savedRedo
+    setIsDirty(savedDirty)
+    throw error
+  }
 }

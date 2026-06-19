@@ -2,11 +2,15 @@ import fs from 'fs'
 import path from 'path'
 import os from 'os'
 import crypto from 'crypto'
-import { spawn, type ChildProcess } from 'child_process'
-import { getFFmpegPath } from './ffmpegBridge'
+import { startJob } from './ffmpegJobManager'
 import { PROXY_CONFIG } from '../shared/constants'
+import { validateForRead } from './pathSecurity'
 
-let transcodingProcess: ChildProcess | null = null
+// Aktiver Transcoding-Job — ersetzt das alte globale `let transcodingProcess`
+// Vorteil: eindeutige Job-ID statt Prozess-Referenz, kein Race beim schnellen Doppelklick
+import type { JobHandle } from './ffmpegJobManager'
+
+let _activeTranscodeJob: JobHandle | null = null
 
 // Pruefen ob ein Video transkodiert werden muss
 export function needsTranscoding(codec: string, filePath: string): boolean {
@@ -58,30 +62,15 @@ export function generateProxy(
   onProgress?: (progress: { progress: number }) => void,
 ): Promise<{ success: boolean; proxyPath?: string; cached?: boolean; error?: string }> {
   return new Promise((resolve) => {
-    const ffmpegPath = getFFmpegPath()
-    if (!ffmpegPath) {
-      resolve({ success: false, error: 'FFmpeg nicht gefunden' })
-      return
-    }
-
     // Laufendes Transcoding abbrechen bevor neuer Prozess startet (fix #122)
     cancelTranscoding()
 
-    // Path-Traversal-Schutz — Symlink-sicher (fix #88, #120)
+    // Path-Traversal-Schutz — Symlink-sicher via pathSecurity-Modul (fix #88, #120)
     let safeInputPath: string
     try {
-      safeInputPath = fs.realpathSync(inputPath)
+      safeInputPath = validateForRead(inputPath, { allowTmp: true })
     } catch {
-      resolve({ success: false, error: 'Access denied: video path not found' })
-      return
-    }
-    const homeDir = os.homedir()
-    const tmpDirPath = os.tmpdir()
-    if (
-      !safeInputPath.startsWith(homeDir + path.sep) &&
-      !safeInputPath.startsWith(tmpDirPath + path.sep)
-    ) {
-      resolve({ success: false, error: 'Access denied: video path outside allowed directories' })
+      resolve({ success: false, error: 'Access denied: video path not found or outside allowed directories' })
       return
     }
 
@@ -96,7 +85,7 @@ export function generateProxy(
     const outputPath = path.join(proxyDir, _getProxyFileName(inputPath))
 
     const args = [
-      '-i', inputPath,
+      '-i', safeInputPath,
       '-vf', PROXY_CONFIG.VIDEO_FILTER,
       '-c:v', 'libx264',
       '-pix_fmt', PROXY_CONFIG.PIX_FMT,
@@ -109,74 +98,62 @@ export function generateProxy(
       outputPath,
     ]
 
-    const proc = spawn(ffmpegPath, args)
-    transcodingProcess = proc
-
-    // Nur letzten Chunk-Rest aufbewahren fuer Grenzfaelle
-    let chunkTail = ''
-
-    proc.stderr!.on('data', (data: Buffer) => {
-      const chunk = chunkTail + data.toString()
-
-      if (duration > 0 && onProgress) {
-        const timeMatch = chunk.match(/time=(\d+):(\d+):([\d.]+)/g)
-        if (timeMatch) {
-          const lastMatch = timeMatch[timeMatch.length - 1]
-          const parts = lastMatch.match(/time=(\d+):(\d+):([\d.]+)/)
-          if (parts) {
-            const hours = parseInt(parts[1])
-            const minutes = parseInt(parts[2])
-            const seconds = parseFloat(parts[3])
-            const currentTime = hours * 3600 + minutes * 60 + seconds
-            const progress = Math.min((currentTime / duration) * 100, 99)
-            onProgress({ progress: Math.round(progress) })
+    // Transcoding-Progress: nur wenn duration > 0 und Callback vorhanden
+    const progressCallback =
+      duration > 0 && onProgress
+        ? (data: { progress: number } | undefined) => {
+            if (data) onProgress(data)
           }
-        }
-      }
+        : undefined
 
-      chunkTail = chunk.slice(-100)
+    const job = startJob({
+      type: 'transcode',
+      args,
+      duration,
+      onProgress: progressCallback,
     })
 
-    proc.on('close', (code: number | null) => {
-      if (transcodingProcess === proc) {
-        transcodingProcess = null
-      }
+    _activeTranscodeJob = job
 
-      if (code === 0) {
+    job.done
+      .then(() => {
+        // Job-Referenz nur loeschen wenn dies noch der aktive Job ist
+        if (_activeTranscodeJob === job) {
+          _activeTranscodeJob = null
+        }
+
         if (fs.existsSync(outputPath) && fs.statSync(outputPath).size > 0) {
           resolve({ success: true, proxyPath: outputPath })
         } else {
           resolve({ success: false, error: 'Proxy-Datei ist leer oder fehlt' })
         }
-      } else {
+      })
+      .catch((err: Error) => {
+        if (_activeTranscodeJob === job) {
+          _activeTranscodeJob = null
+        }
         _cleanupFile(outputPath)
-        resolve({
-          success: false,
-          error: code === null ? 'Transcoding abgebrochen' : `FFmpeg Fehler (Code ${code})`,
-        })
-      }
-    })
-
-    proc.on('error', (error: Error) => {
-      if (transcodingProcess === proc) {
-        transcodingProcess = null
-      }
-      _cleanupFile(outputPath)
-      resolve({ success: false, error: `FFmpeg Fehler: ${error.message}` })
-    })
+        const msg = err.message || ''
+        if (msg.includes('abgebrochen') || msg.includes('Job abgebrochen')) {
+          resolve({ success: false, error: 'Transcoding abgebrochen' })
+        } else if (msg.startsWith('FFmpeg nicht gefunden')) {
+          resolve({ success: false, error: 'FFmpeg nicht gefunden' })
+        } else if (msg.startsWith('FFmpeg Fehler')) {
+          // JobManager liefert bereits "FFmpeg Fehler (Code N)" — nicht doppelt praefixen
+          resolve({ success: false, error: msg })
+        } else {
+          resolve({ success: false, error: `FFmpeg Fehler: ${msg}` })
+        }
+      })
   })
 }
 
 // Laufendes Transcoding abbrechen
 export function cancelTranscoding(): void {
-  const proc = transcodingProcess
-  transcodingProcess = null
-  if (proc) {
-    try {
-      proc.kill('SIGTERM')
-    } catch (error) {
-      console.error('Fehler beim Abbrechen des Transcodings:', error)
-    }
+  const job = _activeTranscodeJob
+  _activeTranscodeJob = null
+  if (job) {
+    job.kill()
   }
 }
 

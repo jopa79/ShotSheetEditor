@@ -34,6 +34,7 @@
   import * as selectionActions from './lib/actions/selectionActions'
   import * as projectActions from './lib/actions/projectActions'
   import * as exportActions from './lib/actions/exportActions'
+  import * as themeActions from './lib/actions/themeActions'
   import { showToast } from './lib/actions/toastManager'
   import { setupShortcuts } from './lib/actions/shortcuts'
   import * as thumbnailQueue from './lib/actions/thumbnailQueue'
@@ -153,7 +154,7 @@
           selectionActions.deselectAll()
           break
         case 'view:toggleTheme':
-          ipc.toggleTheme()
+          themeActions.toggleTheme()
           break
         case 'view:zoomIn':
         case 'view:zoomOut':

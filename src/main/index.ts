@@ -4,6 +4,11 @@ import ipcHandlers from './ipcHandlers'
 import proxyGenerator from './proxyGenerator'
 import { IPC_CHANNELS, QUIT_TIMEOUT_MS } from '../shared/constants'
 import sceneDetector from './sceneDetector'
+import protocolHandler from './protocolHandler'
+import { killAll as killAllFFmpegJobs } from './ffmpegJobManager'
+
+// Scheme vor app.ready registrieren — zwingend fuer stream: true
+protocolHandler.registerSchemes()
 
 let mainWindow: BrowserWindow | undefined
 let quitTimer: ReturnType<typeof setTimeout> | null = null
@@ -20,6 +25,7 @@ async function onReady(): Promise<void> {
       _ipcHandlersRegistered = true
     }
     mainWindow = await windowManager.createMainWindow()
+    protocolHandler.registerProtocolHandler()
     buildMenu()
   } catch (error) {
     console.error('Failed to create window:', error)
@@ -165,8 +171,11 @@ function buildMenu(): void {
 let isQuitting = false
 
 app.on('before-quit', (event) => {
-  // Laufendes Transcoding sofort abbrechen
+  // Alle laufenden ffmpeg-Jobs sofort abbrechen (verhindert orphaned Prozesse)
+  killAllFFmpegJobs()
   proxyGenerator.cancelTranscoding()
+  // sceneDetector laeuft mit eigenem spawn (nicht im JobManager) → separat abbrechen
+  sceneDetector.cancelDetection()
 
   if (isQuitting) return
 
@@ -192,8 +201,10 @@ ipcMain.handle(IPC_CHANNELS.APP_CONFIRM_QUIT, () => {
 
   try {
     sceneDetector.cancelDetection()
+    // Alle noch laufenden ffmpeg-Jobs beenden (inkl. Frame-Extractions)
+    killAllFFmpegJobs()
   } catch {
-    // Ignorieren falls Detection nicht laeuft
+    // Ignorieren falls keine Jobs laufen
   }
 
   isQuitting = true

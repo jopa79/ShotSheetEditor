@@ -1,8 +1,8 @@
 import { app, ipcMain, type BrowserWindow, type IpcMainInvokeEvent } from 'electron'
 import path from 'path'
 import fs from 'fs'
-import os from 'os'
 import { IPC_CHANNELS } from '../shared/constants'
+import { validateForRead, validateForWrite } from './pathSecurity'
 import { getVideoMeta } from './videoManager'
 import { detectScenes, cancelDetection } from './sceneDetector'
 import { extractFrames } from './frameExtractor'
@@ -171,21 +171,12 @@ export function registerIpcHandlers(getMainWindow: WindowGetter): void {
         return { success: false, error: 'Invalid file type' }
       }
 
-      const homeDir = os.homedir()
-      const tmpDir = os.tmpdir()
-
-      // Symlink-sichere Aufloesung (fix #88)
+      // Symlink-sichere Validierung via pathSecurity-Modul (fix #88)
       let resolved: string
       try {
-        resolved = fs.realpathSync(thumbPath as string)
+        resolved = validateForRead(thumbPath as string, { allowTmp: true })
       } catch {
-        return { success: false, error: 'Thumbnail not found' }
-      }
-
-      const isAllowed =
-        resolved.startsWith(homeDir + path.sep) || resolved.startsWith(tmpDir + path.sep)
-      if (!isAllowed) {
-        return { success: false, error: 'Access denied: path outside allowed directories' }
+        return { success: false, error: 'Thumbnail not found or access denied' }
       }
 
       const data = await fs.promises.readFile(resolved)
@@ -207,19 +198,12 @@ export function registerIpcHandlers(getMainWindow: WindowGetter): void {
   ipcMain.handle(
     IPC_CHANNELS.PROJECT_OPEN,
     wrapHandler(async (_event, projectPath) => {
-      // Path-Traversal-Schutz — Symlink-sicher (fix #88, #118)
-      const homeDir = os.homedir()
+      // Path-Traversal-Schutz — Symlink-sicher via pathSecurity-Modul (fix #88, #118)
       let resolved: string
       try {
-        resolved = fs.realpathSync(projectPath as string)
+        resolved = validateForRead(projectPath as string)
       } catch {
         return { success: false, error: 'Access denied: project path not found' }
-      }
-      if (!resolved.startsWith(homeDir + path.sep)) {
-        return {
-          success: false,
-          error: 'Access denied: project path must be within home directory',
-        }
       }
       return openProject(resolved)
     }),
@@ -249,36 +233,22 @@ export function registerIpcHandlers(getMainWindow: WindowGetter): void {
         codec: string
       }
 
-      // Path-Traversal-Schutz — Symlink-sicher (fix #88, #117)
-      const homeDir = os.homedir()
-      const tmpDir = os.tmpdir()
+      // Path-Traversal-Schutz — Symlink-sicher via pathSecurity-Modul (fix #88, #117)
       let safeVideoPath: string
       try {
-        safeVideoPath = fs.realpathSync(videoPath)
+        safeVideoPath = validateForRead(videoPath, { allowTmp: true })
       } catch {
-        return { success: false, error: 'Access denied: video path not found' }
+        return { success: false, error: 'Access denied: video path not found or outside allowed directories' }
       }
-      if (
-        !safeVideoPath.startsWith(homeDir + path.sep) &&
-        !safeVideoPath.startsWith(tmpDir + path.sep)
-      ) {
-        return { success: false, error: 'Access denied: video path outside allowed directories' }
-      }
-      // Output-Pfad existiert noch nicht — Verzeichnis pruefen
-      let safeOutputDir: string
+      // Output-Pfad: Parent-Verzeichnis validieren, nur homeDir erlaubt (kein tmp fuer User-Exports)
+      let safeOutputPath: string
       try {
-        safeOutputDir = fs.realpathSync(path.dirname(outputPath))
+        safeOutputPath = validateForWrite(outputPath)
       } catch {
-        return { success: false, error: 'Access denied: output directory not found' }
-      }
-      if (
-        !safeOutputDir.startsWith(homeDir + path.sep) &&
-        !safeOutputDir.startsWith(tmpDir + path.sep)
-      ) {
-        return { success: false, error: 'Access denied: output path outside allowed directories' }
+        return { success: false, error: 'Access denied: output path not found or outside allowed directories' }
       }
 
-      return exportSequence(videoPath, startTime, endTime, outputPath, codec, (progress) => {
+      return exportSequence(safeVideoPath, startTime, endTime, safeOutputPath, codec, (progress) => {
         sendProgress(getMainWindow,IPC_CHANNELS.EXPORT_SEQUENCE_PROGRESS, progress)
       })
     }),
@@ -291,7 +261,14 @@ export function registerIpcHandlers(getMainWindow: WindowGetter): void {
         thumbnailPaths: string[]
         outputPath: string
       }
-      return exportZip(thumbnailPaths, outputPath, (progress) => {
+      // Output-Pfad: Parent-Verzeichnis validieren, nur homeDir erlaubt (analog EXPORT_SEQUENCE)
+      let safeOutputPath: string
+      try {
+        safeOutputPath = validateForWrite(outputPath)
+      } catch {
+        return { success: false, error: 'Access denied: output path not found or outside allowed directories' }
+      }
+      return exportZip(thumbnailPaths, safeOutputPath, (progress) => {
         sendProgress(getMainWindow,IPC_CHANNELS.EXPORT_ZIP_PROGRESS, progress)
       })
     }),
@@ -393,23 +370,15 @@ export function registerIpcHandlers(getMainWindow: WindowGetter): void {
     wrapHandler(async (_event, params) => {
       const { videoPath, duration } = params as { videoPath: string; duration: number }
 
-      // Path-Traversal-Schutz — Symlink-sicher (fix #88, #120)
-      const homeDir = os.homedir()
-      const tmpDir = os.tmpdir()
+      // Path-Traversal-Schutz — Symlink-sicher via pathSecurity-Modul (fix #88, #120)
       let safeVideoPath: string
       try {
-        safeVideoPath = fs.realpathSync(videoPath)
+        safeVideoPath = validateForRead(videoPath, { allowTmp: true })
       } catch {
-        return { success: false, error: 'Access denied: video path not found' }
-      }
-      if (
-        !safeVideoPath.startsWith(homeDir + path.sep) &&
-        !safeVideoPath.startsWith(tmpDir + path.sep)
-      ) {
-        return { success: false, error: 'Access denied: video path outside allowed directories' }
+        return { success: false, error: 'Access denied: video path not found or outside allowed directories' }
       }
 
-      return generateProxy(videoPath, duration, (progress) => {
+      return generateProxy(safeVideoPath, duration, (progress) => {
         sendProgress(getMainWindow,IPC_CHANNELS.PROXY_GENERATE_PROGRESS, progress)
       })
     }),

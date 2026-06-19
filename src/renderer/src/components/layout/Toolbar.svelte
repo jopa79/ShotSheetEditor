@@ -21,7 +21,7 @@
   import * as detectionActions from '../../lib/actions/detectionActions'
   import * as exportActions from '../../lib/actions/exportActions'
   import * as undoRedo from '../../lib/actions/undoRedo'
-  import * as ipc from '../../lib/ipc/bridge'
+  import * as themeActions from '../../lib/actions/themeActions'
   import type { FilterMode } from '../../lib/stores/uiState.svelte'
 
   // --- Props ---
@@ -90,11 +90,7 @@
 
   // --- Theme ---
   async function handleThemeToggle() {
-    try {
-      await ipc.toggleTheme()
-    } catch (err) {
-      console.error('Toolbar: toggleTheme failed', err)
-    }
+    await themeActions.toggleTheme()
   }
 </script>
 

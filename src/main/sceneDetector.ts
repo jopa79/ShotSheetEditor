@@ -1,4 +1,4 @@
-import { spawn, type ChildProcess } from 'child_process'
+import { spawn } from 'child_process'
 import { getFFmpegPath } from './ffmpegBridge'
 import { secondsToTimecode } from '../shared/constants'
 
@@ -23,7 +23,11 @@ interface DetectionResult {
   error?: string
 }
 
-let detectionProcess: ChildProcess | null = null
+// Aktiver Detection-Prozess — als ChildProcess-Referenz (zeilenbasiertes stderr-Parsing
+// ist zu domain-spezifisch fuer generischen JobManager-stderr-Handler)
+import type { ChildProcess } from 'child_process'
+
+let _detectionProcess: ChildProcess | null = null
 // Flag ob Abbruch angefordert wurde — verhindert false-success bei cancel (fix #114)
 let _cancelRequested = false
 
@@ -63,12 +67,12 @@ export function detectScenes(
 
       // Lokale Referenz — verhindert Race Condition bei concurrent Calls (fix #121)
       const proc = spawn(ffmpegPath, args)
-      detectionProcess = proc
+      _detectionProcess = proc
 
       let lineBuffer = ''
       const seenTimes = new Set<number>()
 
-      // stderr parsen fuer Scene-Detection-Output
+      // stderr parsen fuer Scene-Detection-Output (zeilenbasierte State-Machine)
       proc.stderr!.on('data', (data: Buffer) => {
         lineBuffer += data.toString()
 
@@ -134,8 +138,8 @@ export function detectScenes(
 
       proc.on('close', (code: number | null) => {
         // Nur nullen wenn dieser Prozess noch der aktuelle ist (fix #121)
-        if (detectionProcess === proc) {
-          detectionProcess = null
+        if (_detectionProcess === proc) {
+          _detectionProcess = null
         }
 
         if (code === 0) {
@@ -151,8 +155,8 @@ export function detectScenes(
       })
 
       proc.on('error', (error: Error) => {
-        if (detectionProcess === proc) {
-          detectionProcess = null
+        if (_detectionProcess === proc) {
+          _detectionProcess = null
         }
         resolve({
           success: false,
@@ -171,14 +175,19 @@ export function detectScenes(
 // Laufende Detection abbrechen
 export function cancelDetection(): void {
   _cancelRequested = true
-  if (detectionProcess) {
+  if (_detectionProcess) {
     try {
-      detectionProcess.kill('SIGTERM')
-      detectionProcess = null
+      _detectionProcess.kill('SIGTERM')
+      _detectionProcess = null
     } catch (error) {
       console.error('Error cancelling detection:', error)
     }
   }
 }
+
+// Hinweis: Detection laeuft mit eigenem spawn (NICHT im ffmpegJobManager).
+// killAll() erfasst sie daher NICHT — fuer Quit/Abbruch muss cancelDetection()
+// explizit aufgerufen werden (siehe index.ts before-quit + APP_CONFIRM_QUIT).
+// Volle Migration in den JobManager ist als Welle-2-Kandidat vorgemerkt.
 
 export default { detectScenes, cancelDetection }

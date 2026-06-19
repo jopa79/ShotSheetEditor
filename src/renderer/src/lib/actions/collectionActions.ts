@@ -9,7 +9,7 @@ import {
   setActiveCollectionId,
   setFilterMode,
 } from '../stores'
-import * as undoRedo from './undoRedo'
+import { withUndo } from './undoRedo'
 
 /** Eindeutige Collection-ID generieren */
 function generateId(): string {
@@ -20,7 +20,7 @@ function generateId(): string {
  * Neue Collection erstellen.
  * Fix #141: name wird validiert
  * Fix #142: indices wird auf Array geprüft
- * Fix #123: commit() VOR setState()
+ * Fix #123: commit() VOR setState() — via withUndo() atomisch gesichert
  */
 export function createCollection(name: string, indices: number[] = []): Collection {
   if (!name || typeof name !== 'string' || !name.trim()) {
@@ -36,20 +36,25 @@ export function createCollection(name: string, indices: number[] = []): Collecti
     indices: uniqueIndices,
   }
 
-  undoRedo.commit()
-  setCollections([...getCollections(), collection])
+  withUndo(() => {
+    setCollections([...getCollections(), collection])
+  })
   return collection
 }
 
 /**
  * Collection löschen.
- * Fix #123: commit() VOR setState()
+ * Fix #123: commit() VOR setState() — via withUndo() atomisch gesichert.
+ * Hinweis: setActiveCollectionId/setFilterMode sind UI-State (kein Snapshot-Bestandteil)
+ * und laufen daher nach dem withUndo-Block — das ist korrekt.
  */
 export function deleteCollection(id: string): void {
-  undoRedo.commit()
-  setCollections(getCollections().filter((c) => c.id !== id))
+  withUndo(() => {
+    setCollections(getCollections().filter((c) => c.id !== id))
+  })
 
   // Aktive Collection zurücksetzen wenn die gelöschte aktiv war
+  // (UI-State — nicht Teil des Undo-Snapshots)
   if (getActiveCollectionId() === id) {
     setActiveCollectionId(null)
     setFilterMode('all')
@@ -59,54 +64,57 @@ export function deleteCollection(id: string): void {
 /**
  * Collection umbenennen.
  * Fix #141: name wird validiert
- * Fix #123: commit() VOR setState()
+ * Fix #123: commit() VOR setState() — via withUndo() atomisch gesichert
  */
 export function renameCollection(id: string, name: string): void {
   if (!name || typeof name !== 'string' || !name.trim()) {
     throw new Error('Collection name must be a non-empty string')
   }
 
-  undoRedo.commit()
-  setCollections(
-    getCollections().map((c) => (c.id === id ? { ...c, name: name.trim() } : c))
-  )
+  withUndo(() => {
+    setCollections(
+      getCollections().map((c) => (c.id === id ? { ...c, name: name.trim() } : c))
+    )
+  })
 }
 
 /**
  * Szenen zu einer Collection hinzufügen (Set-basiert, keine Duplikate).
  * Fix #142: indices wird auf Array geprüft
- * Fix #123: commit() VOR setState()
+ * Fix #123: commit() VOR setState() — via withUndo() atomisch gesichert
  */
 export function addToCollection(id: string, indices: number[]): void {
   const safeIndices = Array.isArray(indices) ? indices : []
 
-  undoRedo.commit()
-  setCollections(
-    getCollections().map((c) => {
-      if (c.id !== id) return c
-      const indexSet = new Set(c.indices)
-      for (const idx of safeIndices) {
-        indexSet.add(idx)
-      }
-      return { ...c, indices: [...indexSet].sort((a, b) => a - b) }
-    })
-  )
+  withUndo(() => {
+    setCollections(
+      getCollections().map((c) => {
+        if (c.id !== id) return c
+        const indexSet = new Set(c.indices)
+        for (const idx of safeIndices) {
+          indexSet.add(idx)
+        }
+        return { ...c, indices: [...indexSet].sort((a, b) => a - b) }
+      })
+    )
+  })
 }
 
 /**
  * Szenen aus einer Collection entfernen.
- * Fix #123: commit() VOR setState()
+ * Fix #123: commit() VOR setState() — via withUndo() atomisch gesichert
  */
 export function removeFromCollection(id: string, indices: number[]): void {
   const removeSet = new Set(Array.isArray(indices) ? indices : [])
 
-  undoRedo.commit()
-  setCollections(
-    getCollections().map((c) => {
-      if (c.id !== id) return c
-      return { ...c, indices: c.indices.filter((i) => !removeSet.has(i)) }
-    })
-  )
+  withUndo(() => {
+    setCollections(
+      getCollections().map((c) => {
+        if (c.id !== id) return c
+        return { ...c, indices: c.indices.filter((i) => !removeSet.has(i)) }
+      })
+    )
+  })
 }
 
 /** Collection als aktiven Filter setzen */

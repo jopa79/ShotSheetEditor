@@ -11,7 +11,7 @@ import {
   getScenes,
 } from '../stores'
 import { getVisibleScenes } from '../stores'
-import * as undoRedo from './undoRedo'
+import { withUndo } from './undoRedo'
 
 /** Einzelnen Shot selektieren/deselektieren (Toggle) */
 export function selectShot(idx: number): void {
@@ -73,7 +73,7 @@ export function invertSelection(): void {
 
 /**
  * Favorit-Status toggeln.
- * Fix #87: commit() VOR setState()
+ * Fix #87: commit() VOR setState() — via withUndo() atomisch gesichert
  */
 export function toggleFavorite(idx: number): void {
   const favorites = [...getFavoriteIndices()]
@@ -84,13 +84,14 @@ export function toggleFavorite(idx: number): void {
     favorites.push(idx)
   }
 
-  undoRedo.commit()
-  setFavoriteIndices(favorites)
+  withUndo(() => {
+    setFavoriteIndices(favorites)
+  })
 }
 
 /**
  * Alle selektierten Shots zu Favoriten hinzufügen.
- * Fix #87: commit() VOR setState()
+ * Fix #87: commit() VOR setState() — via withUndo() atomisch gesichert
  */
 export function favSelected(): void {
   const selected = getSelectedIndices()
@@ -100,25 +101,28 @@ export function favSelected(): void {
   }
   const newFavorites = Array.from(favoriteSet).sort((a, b) => a - b)
 
-  undoRedo.commit()
-  setFavoriteIndices(newFavorites)
+  withUndo(() => {
+    setFavoriteIndices(newFavorites)
+  })
 }
 
 /**
  * Alle selektierten Shots von Favoriten entfernen.
- * Fix #87: commit() VOR setState()
+ * Fix #87: commit() VOR setState() — via withUndo() atomisch gesichert
  */
 export function unfavSelected(): void {
   const selectedSet = new Set(getSelectedIndices())
   const newFavorites = getFavoriteIndices().filter((idx) => !selectedSet.has(idx))
 
-  undoRedo.commit()
-  setFavoriteIndices(newFavorites)
+  withUndo(() => {
+    setFavoriteIndices(newFavorites)
+  })
 }
 
 /**
  * Selektierte Shots löschen (soft delete).
- * Fix #87: commit() VOR setState()
+ * Fix #87: commit() VOR setState() — via withUndo() atomisch gesichert.
+ * Beide Mutations (deletedIndices + selectedIndices) in einem Snapshot.
  */
 export function deleteSelected(): void {
   const selected = getSelectedIndices()
@@ -130,28 +134,31 @@ export function deleteSelected(): void {
   }
   const newDeleted = Array.from(deletedSet).sort((a, b) => a - b)
 
-  undoRedo.commit()
-  setDeletedIndices(newDeleted)
-  setSelectedIndices([])
+  withUndo(() => {
+    setDeletedIndices(newDeleted)
+    setSelectedIndices([])
+  })
 }
 
 /**
  * Einzelnen Shot löschen (unabhängig von Selektion).
- * Fix #87: commit() VOR setState()
+ * Fix #87: commit() VOR setState() — via withUndo() atomisch gesichert
  */
 export function deleteSingle(idx: number): void {
   const deleted = getDeletedIndices()
   if (deleted.includes(idx)) return
 
-  undoRedo.commit()
-  setDeletedIndices([...deleted, idx].sort((a, b) => a - b))
+  withUndo(() => {
+    setDeletedIndices([...deleted, idx].sort((a, b) => a - b))
+  })
 }
 
 /**
  * Einzelnen Shot wiederherstellen.
- * Fix #87: commit() VOR setState()
+ * Fix #87: commit() VOR setState() — via withUndo() atomisch gesichert
  */
 export function restoreSingle(idx: number): void {
-  undoRedo.commit()
-  setDeletedIndices(getDeletedIndices().filter((i) => i !== idx))
+  withUndo(() => {
+    setDeletedIndices(getDeletedIndices().filter((i) => i !== idx))
+  })
 }
