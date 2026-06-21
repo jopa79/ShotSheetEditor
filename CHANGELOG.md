@@ -23,6 +23,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `App.svelte`: `view:toggleTheme` Menu-Handler ueber `themeActions.toggleTheme()` geroutet (einheitlicher Seam)
 - 14x duplizierte Path-Validierung in allen Main-Process-Modulen durch zentrales `pathSecurity`-Modul ersetzt (ipcHandlers, proxyGenerator, exportManager, projectManager, protocolHandler)
 - proxyGenerator, sceneDetector und frameExtractor nutzen jetzt `ffmpegJobManager`; globale `let`-Prozess-Variablen eliminiert (kein Race bei schnellem Doppelklick)
+- `sceneDetector` vollstaendig in `ffmpegJobManager` migriert (`startJob({type:'detect', onStderrLine})`); eigener spawn/`_detectionProcess` entfernt, `killAll()` erfasst jetzt auch detect-Jobs
+- Typisierte `JobError`-Kinds (`cancelled` | `ffmpeg-not-found` | `failed`) ersetzen fragiles String-Matching in den catch-Bloecken von proxyGenerator/frameExtractor
+- `thumbnailQueue` als `QueuedExtractor`-Klasse mit privatem State (statt 4 Modul-Level-`let`); Video-Switch-Guard als explizite Klassen-Invariante
 
 ### Fixed
 - `frameExtractor` orphaned-process-Bug: Frame-Extractions hatten kein Process-Tracking und keinen Cancel — jetzt via `ffmpegJobManager` getrackt und bei App-Quit (`killAll`) sauber beendet

@@ -171,10 +171,12 @@ function buildMenu(): void {
 let isQuitting = false
 
 app.on('before-quit', (event) => {
-  // Alle laufenden ffmpeg-Jobs sofort abbrechen (verhindert orphaned Prozesse)
+  // Alle laufenden ffmpeg-Jobs sofort abbrechen (verhindert orphaned Prozesse).
+  // killAll() erfasst seit Welle 2 auch detect-Jobs (sceneDetector migriert).
   killAllFFmpegJobs()
   proxyGenerator.cancelTranscoding()
-  // sceneDetector laeuft mit eigenem spawn (nicht im JobManager) → separat abbrechen
+  // cancelDetection() bleibt als explizite Sicherheit (setzt _activeDetectJob=null,
+  // idempotent — schadet nicht wenn killAll() den Prozess bereits beendet hat)
   sceneDetector.cancelDetection()
 
   if (isQuitting) return
@@ -200,8 +202,9 @@ ipcMain.handle(IPC_CHANNELS.APP_CONFIRM_QUIT, () => {
   }
 
   try {
+    // cancelDetection() als explizite Sicherheit (idempotent, killAll() erfasst detect bereits)
     sceneDetector.cancelDetection()
-    // Alle noch laufenden ffmpeg-Jobs beenden (inkl. Frame-Extractions)
+    // Alle noch laufenden ffmpeg-Jobs beenden (inkl. Frame-Extractions und detect-Jobs seit Welle 2)
     killAllFFmpegJobs()
   } catch {
     // Ignorieren falls keine Jobs laufen

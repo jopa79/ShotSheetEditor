@@ -14,6 +14,30 @@
 
 import { vi } from 'vitest'
 import type { ElectronAPI, CleanupFn } from '../../src/preload/types'
+import type { Scene } from '../../src/shared/models'
+
+// ---------------------------------------------------------------------------
+// Stateful extractFrames-Mock — von QueuedExtractor-Tests genutzt.
+// Default: liefert pro Szene einen Frame-Pfad <outputDir>/frame_<index>.jpg.
+// Pro Test via mockExtractFrames() überschreibbar; resetFakeIpc() setzt zurück.
+// ---------------------------------------------------------------------------
+type ExtractFramesImpl = (
+  videoPath: string,
+  scenes: Scene[],
+  outputDir: string,
+) => Promise<{ success: boolean; error?: string; frames?: { index: number; path: string }[] }>
+
+const _defaultExtractFrames: ExtractFramesImpl = async (_videoPath, scenes, outputDir) => ({
+  success: true,
+  frames: scenes.map((s) => ({ index: s.index, path: `${outputDir}/frame_${s.index}.jpg` })),
+})
+
+let _extractFramesMock: ExtractFramesImpl = _defaultExtractFrames
+
+/** Ersetzt die extractFrames-Implementierung für einen Test (z.B. QueuedExtractor). */
+export function mockExtractFrames(impl: ExtractFramesImpl): void {
+  _extractFramesMock = impl
+}
 
 // ---------------------------------------------------------------------------
 // Genutzte Teilmenge von ElectronAPI — nur was bridge.ts tatsächlich aufruft.
@@ -70,7 +94,9 @@ function buildDefaultApi(): ElectronAPI {
     detectScenes: vi.fn().mockResolvedValue({ success: true, scenes: [] }),
     cancelDetection: vi.fn().mockResolvedValue({ success: true }),
 
-    extractFrames: vi.fn().mockResolvedValue({ success: true, frames: [] }),
+    extractFrames: vi.fn((videoPath: string, scenes: Scene[], outputDir: string) =>
+      _extractFramesMock(videoPath, scenes, outputDir),
+    ),
     getThumb: vi.fn().mockResolvedValue({ success: true, data: 'data:image/jpeg;base64,fake' }),
 
     newProject: vi.fn().mockResolvedValue({ success: true, path: '/fake/project' }),
@@ -129,6 +155,8 @@ export function installFakeIpc(overrides: Partial<ElectronAPI> = {}): void {
  */
 export function resetFakeIpc(): void {
   delete (globalThis as Record<string, unknown>).window
+  // extractFrames-Mock auf Default zurücksetzen
+  _extractFramesMock = _defaultExtractFrames
   // Listener-Slots zurücksetzen
   _listeners = {
     onDetectProgress: [],

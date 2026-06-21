@@ -2,7 +2,7 @@ import fs from 'fs'
 import path from 'path'
 import os from 'os'
 import crypto from 'crypto'
-import { startJob } from './ffmpegJobManager'
+import { startJob, JobError } from './ffmpegJobManager'
 import { PROXY_CONFIG } from '../shared/constants'
 import { validateForRead } from './pathSecurity'
 
@@ -128,20 +128,28 @@ export function generateProxy(
           resolve({ success: false, error: 'Proxy-Datei ist leer oder fehlt' })
         }
       })
-      .catch((err: Error) => {
+      .catch((err: unknown) => {
         if (_activeTranscodeJob === job) {
           _activeTranscodeJob = null
         }
         _cleanupFile(outputPath)
-        const msg = err.message || ''
-        if (msg.includes('abgebrochen') || msg.includes('Job abgebrochen')) {
-          resolve({ success: false, error: 'Transcoding abgebrochen' })
-        } else if (msg.startsWith('FFmpeg nicht gefunden')) {
-          resolve({ success: false, error: 'FFmpeg nicht gefunden' })
-        } else if (msg.startsWith('FFmpeg Fehler')) {
-          // JobManager liefert bereits "FFmpeg Fehler (Code N)" — nicht doppelt praefixen
-          resolve({ success: false, error: msg })
+
+        // Typisierte Fehlerklassifikation via JobError.kind (kein fragiles String-Matching)
+        if (err instanceof JobError) {
+          if (err.kind === 'cancelled') {
+            resolve({ success: false, error: 'Transcoding abgebrochen' })
+          } else if (err.kind === 'ffmpeg-not-found') {
+            resolve({ success: false, error: 'FFmpeg nicht gefunden' })
+          } else if (err.code !== undefined) {
+            // kind='failed' mit Exit-Code: JobManager liefert bereits "FFmpeg Fehler (Code N)"
+            resolve({ success: false, error: err.message })
+          } else {
+            // kind='failed' ohne Exit-Code: spawn-Error (ENOENT o.ae.) — Fehlertext ergaenzen
+            resolve({ success: false, error: `FFmpeg Fehler: ${err.message}` })
+          }
         } else {
+          // Unbekannter Fehler (z.B. synchroner Wurf)
+          const msg = (err as Error).message || String(err)
           resolve({ success: false, error: `FFmpeg Fehler: ${msg}` })
         }
       })
