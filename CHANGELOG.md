@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- Auto-Save: Projekt wird still alle 60 s gespeichert wenn `isDirty` + Projektpfad (+ Video) vorliegen (`autoSaveActions.ts`); `saveProject()` erhielt eine `{ silent?: boolean }`-Option — Fehler-Toasts bleiben auch beim Auto-Save aktiv. Toggle-API `setAutoSaveEnabled` als Haken fuer eine spaetere Settings-UI (Persistenz/Dialog = separater Task)
 - Open Project: Projektordner via Dialog oeffnen, State + Video laden
 - Save As: Projekt unter neuem Pfad speichern (inkl. Verzeichnis-Erstellung)
 - IPC-Channels `dialog:openProject` und `dialog:saveProject`

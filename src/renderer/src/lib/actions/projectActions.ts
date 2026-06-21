@@ -69,11 +69,14 @@ export function newProject(): void {
 /**
  * Projekt speichern
  */
-export async function saveProject(): Promise<void> {
+export async function saveProject(opts?: { silent?: boolean }): Promise<void> {
+  // silent=true (z.B. Auto-Save): kein Erfolgs-Toast. Fehler werden IMMER
+  // angezeigt — auch beim Auto-Save sind sie data-integrity-relevant.
+  const silent = opts?.silent === true
   const videoPath = getVideoPath()
   const projectPath = getProjectPath()
   if (!videoPath || !projectPath) {
-    showToast('No project to save', 'warning')
+    if (!silent) showToast('No project to save', 'warning')
     return
   }
 
@@ -83,7 +86,7 @@ export async function saveProject(): Promise<void> {
     const result = await ipc.saveProject(projectPath, data)
     if (result?.success) {
       setIsDirty(false)
-      showToast('Project saved', 'success')
+      if (!silent) showToast('Project saved', 'success')
     } else {
       showToast(result?.error ?? 'Failed to save project', 'error')
     }

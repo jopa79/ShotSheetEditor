@@ -36,6 +36,7 @@
   import * as themeActions from './lib/actions/themeActions'
   import { showToast } from './lib/actions/toastManager'
   import { setupShortcuts } from './lib/actions/shortcuts'
+  import { setupAutoSave } from './lib/actions/autoSaveActions'
   import { SUPPORTED_FORMATS } from '../../shared/constants'
   import type { ContextMenuItem } from './components/shared/ContextMenu.svelte'
 
@@ -165,6 +166,11 @@
   // --- Keyboard Shortcuts ---
   $effect(() => {
     return setupShortcuts()
+  })
+
+  // --- Auto-Save (alle 60s, still, nur bei isDirty + projectPath) ---
+  $effect(() => {
+    return setupAutoSave()
   })
 
   // --- Drag & Drop ---
