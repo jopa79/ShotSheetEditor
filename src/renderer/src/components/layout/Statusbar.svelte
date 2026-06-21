@@ -1,7 +1,15 @@
 <script lang="ts">
   // Statusbar.svelte — Statusleiste unten
 
-  import { getScenes, getThreshold, getIsDetecting, getDetectProgress } from '../../lib/stores'
+  import {
+    getScenes,
+    getThreshold,
+    getIsDetecting,
+    getDetectProgress,
+    getAutoSaveEnabled,
+    setAutoSaveEnabled,
+    setIsDirty,
+  } from '../../lib/stores'
 
   interface Props {
     version: string
@@ -9,6 +17,13 @@
   }
 
   let { version, ffmpegAvailable }: Props = $props()
+
+  // Auto-Save umschalten. setIsDirty(true) sorgt dafuer, dass die geaenderte
+  // Praeferenz beim naechsten (ggf. manuellen) Save in project.json landet.
+  function toggleAutoSave() {
+    setAutoSaveEnabled(!getAutoSaveEnabled())
+    setIsDirty(true)
+  }
 </script>
 
 <footer class="statusbar">
@@ -24,6 +39,15 @@
   </div>
 
   <div class="statusbar-right">
+    <button
+      type="button"
+      class="status-item status-toggle"
+      class:status-ok={getAutoSaveEnabled()}
+      onclick={toggleAutoSave}
+      title="Auto-Save alle 60s (klicken zum Umschalten)"
+    >
+      Auto-Save: {getAutoSaveEnabled() ? 'On' : 'Off'}
+    </button>
     <span class="status-item">Threshold: {getThreshold().toFixed(2)}</span>
     <span class="status-item">v{version}</span>
     <span class="status-item" class:status-ok={ffmpegAvailable} class:status-warn={!ffmpegAvailable}>
@@ -55,6 +79,21 @@
 
   .status-item {
     white-space: nowrap;
+  }
+
+  .status-toggle {
+    background: none;
+    border: none;
+    padding: 0;
+    margin: 0;
+    font: inherit;
+    color: inherit;
+    cursor: pointer;
+  }
+
+  .status-toggle:hover {
+    color: var(--text-1);
+    text-decoration: underline;
   }
 
   .detecting {

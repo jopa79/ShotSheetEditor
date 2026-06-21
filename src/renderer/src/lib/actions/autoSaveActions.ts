@@ -3,32 +3,38 @@
 // Speichert das Projekt still (kein Toast), wenn ungespeicherte Aenderungen
 // vorliegen UND ein Projektpfad gesetzt ist. Schuetzt vor Datenverlust.
 //
-// Hinweis: Die Settings-UI (Aktivieren/Deaktivieren) + project.json-Persistenz
-// (settings.autoSave) sind ein separater Task. Hier liegt der Kern-Mechanismus
-// mit einem In-Memory-Flag (Default an) und einer stabilen Toggle-API.
+// Die Auto-Save-Praeferenz lebt im uiState-Store (reaktiv fuer den Statusbar-
+// Toggle, projekt-scoped + in project.json persistiert). Dieses Modul haelt nur
+// den Timer + die Tick-Logik und delegiert das enabled-Flag an den Store.
 
-import { getIsDirty, getProjectPath, getVideoPath } from '../stores'
+import {
+  getIsDirty,
+  getProjectPath,
+  getVideoPath,
+  getAutoSaveEnabled,
+  setAutoSaveEnabled as setStoreAutoSaveEnabled,
+} from '../stores'
 import { saveProject } from './projectActions'
 
 /** Auto-Save-Intervall: alle 60 Sekunden pruefen. */
 const AUTO_SAVE_INTERVAL_MS = 60_000
 
-// Bewusst Modul-Level und AUSSERHALB von resetAllStores(): die Auto-Save-
-// Praeferenz ist eine App-Einstellung, kein Projekt-State — sie soll ein
-// File→New ueberleben. (Persistenz/Settings-UI ist ein separater Task.)
-let _enabled = true
 let _intervalId: ReturnType<typeof setInterval> | null = null
 // Verhindert ueberlappende Saves, falls ein Save laenger als das Intervall braucht.
 let _saveInFlight = false
 
+// Hinweis: Die Auto-Save-Praeferenz lebt jetzt im uiState-Store (reaktiv fuer die
+// Statusbar, projekt-scoped + in project.json persistiert). Diese Wrapper bleiben
+// als stabile Action-API erhalten und delegieren an den Store.
+
 /** Ist Auto-Save aktiviert? */
 export function isAutoSaveEnabled(): boolean {
-  return _enabled
+  return getAutoSaveEnabled()
 }
 
-/** Auto-Save aktivieren/deaktivieren (fuer eine spaetere Settings-UI). */
+/** Auto-Save aktivieren/deaktivieren. */
 export function setAutoSaveEnabled(enabled: boolean): void {
-  _enabled = enabled
+  setStoreAutoSaveEnabled(enabled)
 }
 
 /**
@@ -40,7 +46,7 @@ export function setAutoSaveEnabled(enabled: boolean): void {
  * Speichert still (kein Erfolgs-Toast); Fehler zeigt saveProject() selbst an.
  */
 export async function autoSaveTick(): Promise<void> {
-  if (!_enabled || _saveInFlight) return
+  if (!getAutoSaveEnabled() || _saveInFlight) return
   // videoPath mitpruefen: saveProject() bricht ohne videoPath still ab — sonst
   // bliebe isDirty haengen und jeder Tick liefe ins Leere (stilles False-Positive).
   if (!getIsDirty() || !getProjectPath() || !getVideoPath()) return

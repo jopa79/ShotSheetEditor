@@ -22,6 +22,8 @@ import {
   setThreshold,
   setGridSize,
   setCurrentShotIdx,
+  getAutoSaveEnabled,
+  setAutoSaveEnabled,
 } from '../stores'
 import { resetSelectionState, setFavoriteIndices, setDeletedIndices } from '../stores'
 import * as undoRedo from './undoRedo'
@@ -41,6 +43,7 @@ function collectProjectData() {
     collections: getCollections(),
     threshold: getThreshold(),
     gridSize: getGridSize(),
+    settings: { autoSave: getAutoSaveEnabled() },
   }))
 }
 
@@ -61,6 +64,7 @@ export function newProject(): void {
   setThreshold(0.3)
   setGridSize(200)
   setCurrentShotIdx(-1)
+  setAutoSaveEnabled(true) // neues Projekt → Auto-Save-Default (true)
   setIsDirty(false)
 
   showToast('New project created', 'info')
@@ -174,6 +178,9 @@ export async function openProject(): Promise<void> {
     setDeletedIndices((data?.deletedIndices as number[]) ?? [])
     setThreshold((data?.threshold as number) ?? 0.3)
     setGridSize((data?.gridSize as number) ?? 200)
+    // Auto-Save-Praeferenz aus den Projekt-Settings (Default true fuer alte Projekte)
+    const settings = data?.settings as { autoSave?: boolean } | undefined
+    setAutoSaveEnabled(settings?.autoSave ?? true)
     setProjectPath(dialogResult.path)
     setCurrentShotIdx(-1)
     setIsDirty(false)

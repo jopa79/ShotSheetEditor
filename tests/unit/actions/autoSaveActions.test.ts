@@ -30,8 +30,8 @@ describe('autoSaveActions', () => {
     setVideoPath('/test/video.mp4')
     setProjectPath('/test/project')
     setIsDirty(true)
-    // _enabled lebt ausserhalb des Store-Resets → explizit auf Default setzen,
-    // damit ein abgebrochener Test keinen Folgetest verseucht.
+    // resetAllStores() oben setzt die Auto-Save-Praeferenz (uiState) bereits auf
+    // true zurueck; dieser Aufruf ist nur Absicherung (autoSave wird lazy importiert).
     autoSave?.setAutoSaveEnabled(true)
   })
 

@@ -69,8 +69,16 @@ export interface ProjectData {
   deletedIndices: number[]
   threshold: number
   gridSize: number
+  /** Projekt-Einstellungen (optional, abwaertskompatibel) */
+  settings?: ProjectSettings
   /** V2: Transkriptions-Segmente (optional, nur wenn transkribiert) */
   transcriptionSegments?: TranscriptionSegment[]
+}
+
+/** Persistierte Projekt-Einstellungen (project.json) */
+export interface ProjectSettings {
+  /** Auto-Save aktiv? Default true wenn nicht gesetzt (alte Projekte). */
+  autoSave?: boolean
 }
 
 // --- Export ---
