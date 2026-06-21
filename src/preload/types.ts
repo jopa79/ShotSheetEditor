@@ -116,10 +116,10 @@ export interface ElectronAPI {
   // AI Analyse
   analyzeSegments?: (request: AiAnalyzeRequest) => Promise<AiAnalyzeResponse>
 
-  // Clip-Export
-  exportClips?: (request: ClipExportRequest) => Promise<ClipExportResponse>
-  cancelClipExport?: () => Promise<{ success: boolean }>
-  onClipExportProgress?: (callback: (progress: ClipExportProgress) => void) => CleanupFn
+  // Clip-Export (implementiert — nicht optional)
+  exportClips: (request: ClipExportRequest) => Promise<ClipExportResponse>
+  cancelClipExport: () => Promise<{ success: boolean }>
+  onClipExportProgress: (callback: (progress: ClipExportProgress) => void) => CleanupFn
 
   // API-Keys
   setApiKey?: (provider: ApiKeyProvider, key: string) => Promise<{ success: boolean }>

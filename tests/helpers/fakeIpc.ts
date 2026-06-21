@@ -107,6 +107,10 @@ function buildDefaultApi(): ElectronAPI {
     exportZip: vi.fn().mockResolvedValue({ success: true }),
     selectExportDir: vi.fn().mockResolvedValue({ success: true, path: '/fake/output' }),
 
+    exportClips: vi.fn().mockResolvedValue({ success: true, exportedClips: [] }),
+    cancelClipExport: vi.fn().mockResolvedValue({ success: true }),
+    onClipExportProgress: (): CleanupFn => () => {},
+
     toggleTheme: vi.fn().mockResolvedValue({ success: true, theme: 'dark' }),
     getTheme: vi.fn().mockResolvedValue({ success: true, theme: 'dark' }),
 

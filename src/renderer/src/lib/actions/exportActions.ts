@@ -91,6 +91,70 @@ export async function exportSequence(): Promise<void> {
 }
 
 /**
+ * Clips exportieren — jede selektierte (sonst sichtbare) Szene als eigener Subclip
+ * im gewaehlten Codec (ProRes/H.264). Batch mit Cancel-Unterstuetzung im Main.
+ */
+export async function exportClips(codecKey: ExportCodecKey = 'H264'): Promise<void> {
+  const videoPath = getVideoPath()
+  if (!videoPath) {
+    showToast('No video loaded', 'warning')
+    return
+  }
+
+  const scenes = getScenes()
+  const selectedIndices = getSelectedIndices()
+  // Selektierte Szenen, sonst alle sichtbaren
+  const sourceScenes =
+    selectedIndices.length > 0
+      ? selectedIndices.filter((i) => i >= 0 && i < scenes.length).map((i) => scenes[i])
+      : getVisibleScenes()
+
+  if (sourceScenes.length === 0) {
+    showToast('No scenes to export', 'warning')
+    return
+  }
+
+  const baseName = getVideoBaseName(videoPath)
+  const clips = sourceScenes.map((s, i) => ({
+    startTime: s.startTime,
+    endTime: s.endTime,
+    name: `${baseName}_${String(i + 1).padStart(3, '0')}`,
+  }))
+
+  const dirResult = await ipc.selectExportDir()
+  if (!dirResult.success || !dirResult.path) return
+
+  showToast(`Exporting ${clips.length} clip${clips.length === 1 ? '' : 's'} (${codecKey})…`, 'info')
+  // Progress-Listener (Haken fuer eine kuenftige Fortschritts-UI)
+  const cleanup = ipc.onClipExportProgress(() => {})
+
+  try {
+    const result = await ipc.exportClips({
+      videoPath,
+      clips,
+      outputDir: dirResult.path,
+      codec: codecKey,
+    })
+
+    if (result.success) {
+      const count = result.exportedClips?.length ?? clips.length
+      showToast(`Exported ${count} clip${count === 1 ? '' : 's'} to ${dirResult.path}`, 'success')
+    } else {
+      showToast(`Clip export failed: ${result.error ?? 'Unknown error'}`, 'error')
+    }
+  } catch (err) {
+    showToast(`Clip export failed: ${err instanceof Error ? err.message : String(err)}`, 'error')
+  } finally {
+    cleanup()
+  }
+}
+
+/** Laufenden Clip-Export abbrechen. */
+export function cancelClipExport(): Promise<{ success: boolean }> {
+  return ipc.cancelClipExport()
+}
+
+/**
  * ZIP mit Thumbnails exportieren — alle sichtbaren Szenen mit Thumbnail
  */
 export async function exportZip(): Promise<void> {

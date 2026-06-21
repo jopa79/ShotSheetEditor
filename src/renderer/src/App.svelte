@@ -155,6 +155,12 @@
         case 'export:zip':
           exportActions.exportZip()
           break
+        case 'export:clipsH264':
+          exportActions.exportClips('H264')
+          break
+        case 'export:clipsProRes':
+          exportActions.exportClips('PRORES')
+          break
         default:
           console.warn('App: Unknown menu action:', action)
       }

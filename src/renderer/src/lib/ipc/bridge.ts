@@ -95,6 +95,17 @@ export function exportZip(
   return api().exportZip(data)
 }
 
+// Clip-Export (Subclips)
+export function exportClips(
+  request: Parameters<ElectronAPI['exportClips']>[0]
+): ReturnType<ElectronAPI['exportClips']> {
+  return api().exportClips(request)
+}
+
+export function cancelClipExport(): Promise<{ success: boolean }> {
+  return api().cancelClipExport()
+}
+
 export function selectExportDir(): Promise<ExportSelectDirResponse> {
   return api().selectExportDir()
 }
@@ -173,6 +184,12 @@ export function onExportProgress(
   callback: Parameters<ElectronAPI['onExportProgress']>[0]
 ): CleanupFn {
   return api().onExportProgress(callback)
+}
+
+export function onClipExportProgress(
+  callback: Parameters<ElectronAPI['onClipExportProgress']>[0]
+): CleanupFn {
+  return api().onClipExportProgress(callback)
 }
 
 export function onThemeChanged(callback: (theme: string) => void): CleanupFn {

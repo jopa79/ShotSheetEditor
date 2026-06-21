@@ -159,6 +159,15 @@ function buildMenu(): void {
           label: 'Export ZIP',
           click: () => sendMenuAction('export:zip'),
         },
+        { type: 'separator' },
+        {
+          label: 'Export Clips (H.264)',
+          click: () => sendMenuAction('export:clipsH264'),
+        },
+        {
+          label: 'Export Clips (ProRes)',
+          click: () => sendMenuAction('export:clipsProRes'),
+        },
       ],
     },
   ]

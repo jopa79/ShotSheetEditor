@@ -38,6 +38,11 @@ const api: ElectronAPI = {
   exportZip: (data) => ipcRenderer.invoke('export:zip', data),
   selectExportDir: () => ipcRenderer.invoke('export:selectDir'),
 
+  // Clip-Export (Subclips)
+  exportClips: (request) => ipcRenderer.invoke('clip:export', request),
+  cancelClipExport: () => ipcRenderer.invoke('clip:exportCancel'),
+  onClipExportProgress: (callback) => createListener('clip:exportProgress', callback),
+
   // Theme
   toggleTheme: () => ipcRenderer.invoke('theme:toggle'),
   getTheme: () => ipcRenderer.invoke('theme:get'),

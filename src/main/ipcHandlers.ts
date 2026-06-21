@@ -7,6 +7,8 @@ import { getVideoMeta } from './videoManager'
 import { detectScenes, cancelDetection } from './sceneDetector'
 import { extractFrames } from './frameExtractor'
 import { exportSequence, exportZip } from './exportManager'
+import { exportClips, cancelClipExport } from './clipExporter'
+import type { ClipExportRequest } from '../shared/models'
 import { newProject, openProject, saveProject } from './projectManager'
 import { showExportDirDialog, showOpenVideoDialog, showOpenProjectDialog, showSaveProjectDialog, showUnsavedChangesDialog } from './dialogManager'
 import { toggleTheme, getThemeSource } from './windowManager'
@@ -273,6 +275,22 @@ export function registerIpcHandlers(getMainWindow: WindowGetter): void {
       })
     }),
   )
+
+  // Clip-Export (Subclips): Pfad-/Codec-Validierung passiert in clipExporter
+  ipcMain.handle(
+    IPC_CHANNELS.CLIP_EXPORT,
+    wrapHandler(async (_event, data) => {
+      const request = data as ClipExportRequest
+      return exportClips(request, (progress) => {
+        sendProgress(getMainWindow, IPC_CHANNELS.CLIP_EXPORT_PROGRESS, progress)
+      })
+    }),
+  )
+
+  ipcMain.handle(IPC_CHANNELS.CLIP_EXPORT_CANCEL, () => {
+    cancelClipExport()
+    return { success: true }
+  })
 
   ipcMain.handle(IPC_CHANNELS.EXPORT_SELECT_DIR, async () => {
     try {
