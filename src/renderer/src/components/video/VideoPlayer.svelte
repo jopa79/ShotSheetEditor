@@ -4,12 +4,14 @@
   // Registriert loadVideo + pauseAndReset bei videoActions
 
   import VideoControls from './VideoControls.svelte'
+  import VideoTimeline from './VideoTimeline.svelte'
   import {
     getVideoPath,
     getCurrentShotIdx,
     getScenes,
     getVisibleScenes,
     setCurrentShotIdx,
+    getIsDetecting,
   } from '../../lib/stores'
   import { registerLoadVideo, registerPauseAndReset } from '../../lib/actions/videoActions'
   import {
@@ -17,6 +19,7 @@
     registerPrevShot,
     registerNextShot,
   } from '../../lib/actions/shortcuts'
+  import { toLocalMediaUrl } from '../../lib/utils/fileUrl'
 
   // --- Video-Element Referenz ---
   let videoEl: HTMLVideoElement | undefined = $state()
@@ -25,6 +28,8 @@
   let duration = $state(0)
 
   let hasVideo = $derived(getVideoPath() !== null)
+  let isDetecting = $derived(getIsDetecting())
+  let scenes = $derived(getScenes())
 
   // --- loadVideo: Wird von videoActions aufgerufen ---
   function loadVideo(filePath: string): Promise<void> {
@@ -37,11 +42,8 @@
       // Vorheriges Video pausieren (Fix #147)
       videoEl.pause()
 
-      // Pfad in file:// URL konvertieren
-      let videoUrl = filePath
-      if (!videoUrl.startsWith('file://') && !videoUrl.startsWith('app://')) {
-        videoUrl = 'file://' + (filePath.startsWith('/') ? '' : '/') + filePath
-      }
+      // Pfad in local-media:// URL konvertieren (file:// wird von Chromium blockiert)
+      const videoUrl = toLocalMediaUrl(filePath)
 
       const timeoutId = setTimeout(() => {
         removeLoadListeners()
@@ -103,14 +105,22 @@
     }
   })
 
-  // --- currentShotIdx → seekTo ---
+  // --- currentShotIdx → seekTo + Auto-Play ---
   $effect(() => {
     const idx = getCurrentShotIdx()
     if (idx >= 0 && videoEl) {
-      const scenes = getScenes()
-      const scene = scenes[idx]
+      const allScenes = getScenes()
+      const scene = allScenes[idx]
       if (scene && Number.isFinite(scene.startTime)) {
         videoEl.currentTime = scene.startTime
+        // Auto-Play nach Seek — nicht während Detection (Feature 1+2)
+        if (!getIsDetecting()) {
+          videoEl.play().catch((err: DOMException) => {
+            if (err.name !== 'AbortError') {
+              console.error('VideoPlayer: auto-play failed', err)
+            }
+          })
+        }
       }
     }
   })
@@ -139,10 +149,13 @@
 
   // --- Navigation ---
   function togglePlayPause(): void {
-    if (!videoEl) return
+    if (!videoEl || isDetecting) return
     if (videoEl.paused) {
-      videoEl.play().catch((err) => {
-        console.error('VideoPlayer: play failed', err)
+      videoEl.play().catch((err: DOMException) => {
+        // AbortError ist harmlos — passiert wenn pause() vor play()-Resolve aufgerufen wird
+        if (err.name !== 'AbortError') {
+          console.error('VideoPlayer: play failed', err)
+        }
       })
     } else {
       videoEl.pause()
@@ -150,6 +163,7 @@
   }
 
   function prevShot(): void {
+    if (isDetecting) return
     const scenes = getVisibleScenes()
     const idx = getCurrentShotIdx()
     if (scenes.length === 0) return
@@ -166,6 +180,7 @@
   }
 
   function nextShot(): void {
+    if (isDetecting) return
     const scenes = getVisibleScenes()
     const idx = getCurrentShotIdx()
     if (scenes.length === 0) return
@@ -178,35 +193,51 @@
     }
   }
 
+  // --- Timeline Seek ---
+  function handleTimelineSeek(time: number): void {
+    if (!videoEl || isDetecting) return
+    videoEl.currentTime = time
+  }
+
 </script>
 
-{#if hasVideo}
-  <div class="video-player">
-    <!-- svelte-ignore a11y_media_has_caption -->
-    <video
-      bind:this={videoEl}
-      ontimeupdate={handleTimeUpdate}
-      onplay={handlePlay}
-      onpause={handlePause}
-      onloadedmetadata={handleLoadedMetadata}
-    ></video>
+<div class="video-player" class:hidden={!hasVideo}>
+  <!-- svelte-ignore a11y_media_has_caption -->
+  <video
+    bind:this={videoEl}
+    ontimeupdate={handleTimeUpdate}
+    onplay={handlePlay}
+    onpause={handlePause}
+    onloadedmetadata={handleLoadedMetadata}
+  ></video>
 
-    <VideoControls
-      {isPlaying}
-      {currentTime}
-      {duration}
-      onPlayPause={togglePlayPause}
-      onPrev={prevShot}
-      onNext={nextShot}
-    />
-  </div>
-{/if}
+  <VideoTimeline
+    {currentTime}
+    {duration}
+    {scenes}
+    onSeek={handleTimelineSeek}
+  />
+
+  <VideoControls
+    {isPlaying}
+    {currentTime}
+    {duration}
+    disabled={isDetecting}
+    onPlayPause={togglePlayPause}
+    onPrev={prevShot}
+    onNext={nextShot}
+  />
+</div>
 
 <style>
   .video-player {
     background: var(--bg-3);
     border-bottom: 1px solid var(--border);
     flex-shrink: 0;
+  }
+
+  .video-player.hidden {
+    display: none;
   }
 
   video {

@@ -4,6 +4,7 @@
   import type { ContextMenuItem } from '../shared/ContextMenu.svelte'
   import type { Scene } from '../../../../shared/models'
   import { formatTimecode } from '../../lib/utils/timecode'
+  import { toLocalMediaUrl } from '../../lib/utils/fileUrl'
   import * as selectionActions from '../../lib/actions/selectionActions'
   import * as collectionActions from '../../lib/actions/collectionActions'
   import { showToast } from '../../lib/actions/toastManager'
@@ -27,7 +28,7 @@
   // Thumbnail-URL berechnen
   let thumbSrc = $derived(
     scene.thumbPath
-      ? 'file://' + scene.thumbPath
+      ? toLocalMediaUrl(scene.thumbPath)
       : 'data:image/svg+xml,%3Csvg xmlns="http://www.w3.org/2000/svg" width="200" height="112"%3E%3Crect fill="%23333" width="200" height="112"/%3E%3C/svg%3E'
   )
 

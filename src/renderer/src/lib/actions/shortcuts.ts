@@ -12,6 +12,7 @@ import {
   setFilterMode,
   setGridSize,
   setActiveCollectionId,
+  getIsDetecting,
 } from '../stores'
 
 // --- VideoPlayer-Callbacks ---
@@ -127,10 +128,10 @@ function handleKeydown(e: KeyboardEvent): void {
       _nextShotFn?.()
       break
 
-    // Space: Play/Pause — nicht bei offenem Modal (#136)
+    // Space: Play/Pause — nicht bei offenem Modal (#136), nicht bei Detection
     case e.key === ' ':
       e.preventDefault()
-      if (isModalOpen()) break
+      if (isModalOpen() || getIsDetecting()) break
       _togglePlayPauseFn?.()
       break
 

@@ -29,6 +29,22 @@ import { showToast } from './toastManager'
 import { openVideoFromPath, callPauseAndReset } from './videoActions'
 
 /**
+ * Projektdaten aus Stores sammeln — JSON round-trip entfernt Svelte $state Proxies
+ * damit die Daten ueber IPC (structuredClone) serialisierbar sind.
+ */
+function collectProjectData() {
+  return JSON.parse(JSON.stringify({
+    videoPath: getVideoPath(),
+    scenes: getScenes(),
+    favoriteIndices: getFavoriteIndices(),
+    deletedIndices: getDeletedIndices(),
+    collections: getCollections(),
+    threshold: getThreshold(),
+    gridSize: getGridSize(),
+  }))
+}
+
+/**
  * Neues Projekt erstellen — State zurücksetzen
  */
 export function newProject(): void {
@@ -62,15 +78,7 @@ export async function saveProject(): Promise<void> {
   }
 
   try {
-    const data = {
-      videoPath,
-      scenes: getScenes(),
-      favoriteIndices: getFavoriteIndices(),
-      deletedIndices: getDeletedIndices(),
-      collections: getCollections(),
-      threshold: getThreshold(),
-      gridSize: getGridSize(),
-    }
+    const data = collectProjectData()
 
     const result = await ipc.saveProject(projectPath, data)
     if (result?.success) {
@@ -100,16 +108,7 @@ export async function saveProjectAs(): Promise<void> {
     if (!dialogResult?.success || !dialogResult.path) return
 
     const newPath = dialogResult.path
-
-    const data = {
-      videoPath,
-      scenes: getScenes(),
-      favoriteIndices: getFavoriteIndices(),
-      deletedIndices: getDeletedIndices(),
-      collections: getCollections(),
-      threshold: getThreshold(),
-      gridSize: getGridSize(),
-    }
+    const data = collectProjectData()
 
     const result = await ipc.saveProject(newPath, data)
     if (result?.success) {
