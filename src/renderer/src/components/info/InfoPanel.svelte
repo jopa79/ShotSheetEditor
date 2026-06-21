@@ -13,6 +13,7 @@
     getActiveCollectionId,
   } from '../../lib/stores'
   import * as collectionActions from '../../lib/actions/collectionActions'
+  import { showToast } from '../../lib/actions/toastManager'
 
   // --- Abgeleitete Werte ---
   let currentIdx = $derived(getCurrentShotIdx())
@@ -36,10 +37,16 @@
   )
 
   // --- Collection-Aktionen ---
+  // Konsistentes Toast-Feedback (frueher gab InfoPanel keine Rueckmeldung —
+  // anders als ShotCard). try/catch faengt Validierungsfehler aus collectionActions.
   function handleCreateCollection() {
     const name = prompt('Collection name:')
-    if (name?.trim()) {
+    if (!name?.trim()) return
+    try {
       collectionActions.createCollection(name)
+      showToast(`Collection "${name.trim()}" created`, 'success')
+    } catch {
+      showToast('Could not create collection', 'error')
     }
   }
 
@@ -53,14 +60,19 @@
 
   function handleRenameCollection(colId: string, currentName: string) {
     const newName = prompt('Rename collection:', currentName)
-    if (newName?.trim()) {
+    if (!newName?.trim()) return
+    try {
       collectionActions.renameCollection(colId, newName)
+      showToast(`Collection renamed to "${newName.trim()}"`, 'success')
+    } catch {
+      showToast('Could not rename collection', 'error')
     }
   }
 
   function handleDeleteCollection(colId: string, name: string) {
     if (confirm(`Delete collection "${name}"?`)) {
       collectionActions.deleteCollection(colId)
+      showToast(`Collection "${name}" deleted`, 'success')
     }
   }
 </script>

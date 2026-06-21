@@ -21,6 +21,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 - `Toolbar.svelte` ruft `themeActions.toggleTheme()` statt direkt `ipc.toggleTheme()` — letzter Komponenten-IPC-Verstoss behoben
 - `App.svelte`: `view:toggleTheme` Menu-Handler ueber `themeActions.toggleTheme()` geroutet (einheitlicher Seam)
+- `InfoPanel.svelte`: konsistentes Toast-Feedback bei Collection create/rename/delete (vorher stillschweigend — anders als ShotCard); Validierungsfehler werden abgefangen
 - 14x duplizierte Path-Validierung in allen Main-Process-Modulen durch zentrales `pathSecurity`-Modul ersetzt (ipcHandlers, proxyGenerator, exportManager, projectManager, protocolHandler)
 - proxyGenerator, sceneDetector und frameExtractor nutzen jetzt `ffmpegJobManager`; globale `let`-Prozess-Variablen eliminiert (kein Race bei schnellem Doppelklick)
 - `sceneDetector` vollstaendig in `ffmpegJobManager` migriert (`startJob({type:'detect', onStderrLine})`); eigener spawn/`_detectionProcess` entfernt, `killAll()` erfasst jetzt auch detect-Jobs
