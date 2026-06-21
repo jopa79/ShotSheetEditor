@@ -14,7 +14,6 @@
 
   import {
     setupIpcListeners,
-    registerDetectNewScenesHandler,
     registerExtractProgressHandler,
   } from './lib/ipc/listeners'
   import * as ipc from './lib/ipc/bridge'
@@ -37,7 +36,6 @@
   import * as themeActions from './lib/actions/themeActions'
   import { showToast } from './lib/actions/toastManager'
   import { setupShortcuts } from './lib/actions/shortcuts'
-  import * as thumbnailQueue from './lib/actions/thumbnailQueue'
   import { SUPPORTED_FORMATS } from '../../shared/constants'
   import type { ContextMenuItem } from './components/shared/ContextMenu.svelte'
 
@@ -88,22 +86,11 @@
     return setupIpcListeners()
   })
 
-  // --- Progressive Detection: Neue Szenen + Thumbnails ---
+  // --- Progressive Detection-Thumbnails ---
+  // Die progressive Szenen-Logik (registerDetectNewScenesHandler + thumbnailQueue)
+  // liegt jetzt im DetectionOrchestrator (detectionOrchestrator.ts).
+  // Hier nur noch das progressive Mergen einzelner Thumbnails in den Store.
   $effect(() => {
-    // Neue Szenen während Detection an den Store anhängen + Thumbnails einreihen
-    registerDetectNewScenesHandler((newScenes) => {
-      const current = getScenes()
-      const asScenes = newScenes.map((s) => ({
-        index: s.index,
-        startTime: s.startTime,
-        endTime: 0,
-        duration: 0,
-      }))
-      setScenes([...current, ...asScenes])
-      thumbnailQueue.enqueue(asScenes)
-    })
-
-    // Einzelne Thumbnails progressiv in den Store mergen
     registerExtractProgressHandler((data) => {
       if (!data.frameResult) return
       const { index, path } = data.frameResult

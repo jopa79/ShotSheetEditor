@@ -29,8 +29,11 @@ export function registerExtractProgressHandler(cb: ExtractProgressCallback): voi
   _onExtractProgress = cb
 }
 
-/** Callback für neue Szenen während Detection (ShotGrid.appendScene + ThumbnailQueue) */
-export function registerDetectNewScenesHandler(cb: DetectNewScenesCallback): void {
+/**
+ * Callback für neue Szenen während Detection (DetectionOrchestrator).
+ * `null` de-registriert den Handler (vom Orchestrator beim Run-Ende genutzt).
+ */
+export function registerDetectNewScenesHandler(cb: DetectNewScenesCallback | null): void {
   _onDetectNewScenes = cb
 }
 

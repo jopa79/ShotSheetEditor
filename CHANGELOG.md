@@ -26,6 +26,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `sceneDetector` vollstaendig in `ffmpegJobManager` migriert (`startJob({type:'detect', onStderrLine})`); eigener spawn/`_detectionProcess` entfernt, `killAll()` erfasst jetzt auch detect-Jobs
 - Typisierte `JobError`-Kinds (`cancelled` | `ffmpeg-not-found` | `failed`) ersetzen fragiles String-Matching in den catch-Bloecken von proxyGenerator/frameExtractor
 - `thumbnailQueue` als `QueuedExtractor`-Klasse mit privatem State (statt 4 Modul-Level-`let`); Video-Switch-Guard als explizite Klassen-Invariante
+- `detectionOrchestrator.ts` — Detection-Run als ein Deep Module gebündelt: einziger Owner der Detection-Store-Writes (Setup, progressive Append, Thumbnail-Enqueue, finaler Merge). Die Zwei-Schreibpfad-Logik aus `App.svelte` + `detectionActions.ts` ist konsolidiert; progressive Live-Anzeige bleibt erhalten. `detectionActions.detectScenes()` ist jetzt eine schlanke Fassade über `orchestrator.run()`.
 
 ### Fixed
 - `frameExtractor` orphaned-process-Bug: Frame-Extractions hatten kein Process-Tracking und keinen Cancel — jetzt via `ffmpegJobManager` getrackt und bei App-Quit (`killAll`) sauber beendet
