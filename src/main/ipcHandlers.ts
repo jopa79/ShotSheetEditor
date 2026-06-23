@@ -10,7 +10,8 @@ import { exportSequence, exportZip } from './exportManager'
 import { exportClips, cancelClipExport } from './clipExporter'
 import type { ClipExportRequest } from '../shared/models'
 import { extractAudio } from './audioExtractor'
-import type { AudioExtractRequest } from '../shared/ipcPayloads'
+import { generateWaveform } from './waveformGenerator'
+import type { AudioExtractRequest, WaveformGenerateRequest } from '../shared/ipcPayloads'
 import { newProject, openProject, saveProject } from './projectManager'
 import { showExportDirDialog, showOpenVideoDialog, showOpenProjectDialog, showSaveProjectDialog, showUnsavedChangesDialog } from './dialogManager'
 import { toggleTheme, getThemeSource } from './windowManager'
@@ -299,6 +300,14 @@ export function registerIpcHandlers(getMainWindow: WindowGetter): void {
     IPC_CHANNELS.AUDIO_EXTRACT,
     wrapHandler(async (_event, data) => {
       return extractAudio(data as AudioExtractRequest)
+    }),
+  )
+
+  // Waveform-Peaks aus WAV berechnen
+  ipcMain.handle(
+    IPC_CHANNELS.WAVEFORM_GENERATE,
+    wrapHandler(async (_event, data) => {
+      return generateWaveform(data as WaveformGenerateRequest)
     }),
   )
 

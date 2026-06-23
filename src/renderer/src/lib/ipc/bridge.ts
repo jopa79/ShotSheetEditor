@@ -113,6 +113,13 @@ export function extractAudio(
   return api().extractAudio(request)
 }
 
+// Waveform-Peaks aus WAV
+export function generateWaveform(
+  request: Parameters<ElectronAPI['generateWaveform']>[0]
+): ReturnType<ElectronAPI['generateWaveform']> {
+  return api().generateWaveform(request)
+}
+
 export function selectExportDir(): Promise<ExportSelectDirResponse> {
   return api().selectExportDir()
 }

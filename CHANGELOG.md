@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- Waveform: Audio-Peaks aus der WAV berechnen (`waveformGenerator.ts`, 16-bit PCM → normalisierte min/max-Peaks pro Bucket) + `WaveformDisplay.svelte` (Canvas, Playhead, Klick-Seek) unter der Timeline. Menue "View → Generate Waveform" (extrahiert Audio + berechnet Peaks). Voller IPC-Pfad (`waveform:generate`)
 - Audio-Extraktion (`audioExtractor.ts`): extrahiert die Tonspur als WAV (Default 16 kHz Mono PCM s16le fuer Whisper) via FFmpegJobManager; Output standardmaessig in ein Temp-Verzeichnis. Voller IPC-Pfad (`audio:extract`). Fundament fuer Waveform + Transkription
 - Clip-Export (Subclips): jede selektierte (sonst sichtbare) Szene wird als eigener Clip im gewaehlten Codec (ProRes 422 HQ / H.264) exportiert — `clipExporter.ts` schneidet via FFmpegJobManager (Batch, Gesamt-Fortschritt, Cancel), Menue "Export → Export Clips (H.264/ProRes)". Voller IPC-Pfad (`clip:export`/`clip:exportProgress`/`clip:exportCancel`)
 - Auto-Save: Projekt wird still alle 60 s gespeichert wenn `isDirty` + Projektpfad (+ Video) vorliegen (`autoSaveActions.ts`); `saveProject()` erhielt eine `{ silent?: boolean }`-Option — Fehler-Toasts bleiben auch beim Auto-Save aktiv

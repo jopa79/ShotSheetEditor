@@ -120,6 +120,10 @@ function buildMenu(): void {
           accelerator: 'CmdOrCtrl+Shift+T',
           click: () => sendMenuAction('view:toggleTheme'),
         },
+        {
+          label: 'Generate Waveform',
+          click: () => sendMenuAction('view:generateWaveform'),
+        },
         { type: 'separator' },
         {
           label: 'Zoom In',

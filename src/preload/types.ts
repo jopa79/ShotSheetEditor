@@ -110,8 +110,8 @@ export interface ElectronAPI {
   // Audio (implementiert — nicht optional)
   extractAudio: (request: AudioExtractRequest) => Promise<AudioExtractResponse>
 
-  // Waveform
-  generateWaveform?: (request: WaveformGenerateRequest) => Promise<WaveformGenerateResponse>
+  // Waveform (implementiert — nicht optional)
+  generateWaveform: (request: WaveformGenerateRequest) => Promise<WaveformGenerateResponse>
 
   // AI Analyse
   analyzeSegments?: (request: AiAnalyzeRequest) => Promise<AiAnalyzeResponse>

@@ -5,6 +5,7 @@
 
   import VideoControls from './VideoControls.svelte'
   import VideoTimeline from './VideoTimeline.svelte'
+  import WaveformDisplay from './WaveformDisplay.svelte'
   import {
     getVideoPath,
     getCurrentShotIdx,
@@ -12,6 +13,7 @@
     getVisibleScenes,
     setCurrentShotIdx,
     getIsDetecting,
+    getWaveformPeaks,
   } from '../../lib/stores'
   import { registerLoadVideo, registerPauseAndReset } from '../../lib/actions/videoActions'
   import {
@@ -217,6 +219,15 @@
     {scenes}
     onSeek={handleTimelineSeek}
   />
+
+  {#if getWaveformPeaks().length > 0}
+    <WaveformDisplay
+      peaks={getWaveformPeaks()}
+      {currentTime}
+      {duration}
+      onSeek={handleTimelineSeek}
+    />
+  {/if}
 
   <VideoControls
     {isPlaying}

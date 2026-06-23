@@ -46,6 +46,9 @@ const api: ElectronAPI = {
   // Audio-Extraktion (WAV)
   extractAudio: (request) => ipcRenderer.invoke('audio:extract', request),
 
+  // Waveform-Peaks
+  generateWaveform: (request) => ipcRenderer.invoke('waveform:generate', request),
+
   // Theme
   toggleTheme: () => ipcRenderer.invoke('theme:toggle'),
   getTheme: () => ipcRenderer.invoke('theme:get'),

@@ -33,6 +33,7 @@
   import * as selectionActions from './lib/actions/selectionActions'
   import * as projectActions from './lib/actions/projectActions'
   import * as exportActions from './lib/actions/exportActions'
+  import * as waveformActions from './lib/actions/waveformActions'
   import * as themeActions from './lib/actions/themeActions'
   import { showToast } from './lib/actions/toastManager'
   import { setupShortcuts } from './lib/actions/shortcuts'
@@ -160,6 +161,9 @@
           break
         case 'export:clipsProRes':
           exportActions.exportClips('PRORES')
+          break
+        case 'view:generateWaveform':
+          waveformActions.generateWaveform()
           break
         default:
           console.warn('App: Unknown menu action:', action)
