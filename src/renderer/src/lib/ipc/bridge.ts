@@ -106,6 +106,13 @@ export function cancelClipExport(): Promise<{ success: boolean }> {
   return api().cancelClipExport()
 }
 
+// Audio-Extraktion (WAV) — Basis fuer Whisper + Waveform
+export function extractAudio(
+  request: Parameters<ElectronAPI['extractAudio']>[0]
+): ReturnType<ElectronAPI['extractAudio']> {
+  return api().extractAudio(request)
+}
+
 export function selectExportDir(): Promise<ExportSelectDirResponse> {
   return api().selectExportDir()
 }

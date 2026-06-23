@@ -111,6 +111,8 @@ function buildDefaultApi(): ElectronAPI {
     cancelClipExport: vi.fn().mockResolvedValue({ success: true }),
     onClipExportProgress: (): CleanupFn => () => {},
 
+    extractAudio: vi.fn().mockResolvedValue({ success: true, audioPath: '/fake/audio.wav' }),
+
     toggleTheme: vi.fn().mockResolvedValue({ success: true, theme: 'dark' }),
     getTheme: vi.fn().mockResolvedValue({ success: true, theme: 'dark' }),
 

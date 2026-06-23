@@ -43,6 +43,9 @@ const api: ElectronAPI = {
   cancelClipExport: () => ipcRenderer.invoke('clip:exportCancel'),
   onClipExportProgress: (callback) => createListener('clip:exportProgress', callback),
 
+  // Audio-Extraktion (WAV)
+  extractAudio: (request) => ipcRenderer.invoke('audio:extract', request),
+
   // Theme
   toggleTheme: () => ipcRenderer.invoke('theme:toggle'),
   getTheme: () => ipcRenderer.invoke('theme:get'),

@@ -9,6 +9,8 @@ import { extractFrames } from './frameExtractor'
 import { exportSequence, exportZip } from './exportManager'
 import { exportClips, cancelClipExport } from './clipExporter'
 import type { ClipExportRequest } from '../shared/models'
+import { extractAudio } from './audioExtractor'
+import type { AudioExtractRequest } from '../shared/ipcPayloads'
 import { newProject, openProject, saveProject } from './projectManager'
 import { showExportDirDialog, showOpenVideoDialog, showOpenProjectDialog, showSaveProjectDialog, showUnsavedChangesDialog } from './dialogManager'
 import { toggleTheme, getThemeSource } from './windowManager'
@@ -291,6 +293,14 @@ export function registerIpcHandlers(getMainWindow: WindowGetter): void {
     cancelClipExport()
     return { success: true }
   })
+
+  // Audio-Extraktion (WAV) — Pfad-Validierung passiert in audioExtractor
+  ipcMain.handle(
+    IPC_CHANNELS.AUDIO_EXTRACT,
+    wrapHandler(async (_event, data) => {
+      return extractAudio(data as AudioExtractRequest)
+    }),
+  )
 
   ipcMain.handle(IPC_CHANNELS.EXPORT_SELECT_DIR, async () => {
     try {

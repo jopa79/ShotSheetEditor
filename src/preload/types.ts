@@ -107,8 +107,8 @@ export interface ElectronAPI {
   cancelTranscription?: () => Promise<{ success: boolean }>
   onTranscriptionProgress?: (callback: (progress: TranscriptionProgress) => void) => CleanupFn
 
-  // Audio
-  extractAudio?: (request: AudioExtractRequest) => Promise<AudioExtractResponse>
+  // Audio (implementiert — nicht optional)
+  extractAudio: (request: AudioExtractRequest) => Promise<AudioExtractResponse>
 
   // Waveform
   generateWaveform?: (request: WaveformGenerateRequest) => Promise<WaveformGenerateResponse>
