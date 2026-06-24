@@ -49,6 +49,12 @@ const api: ElectronAPI = {
   // Waveform-Peaks
   generateWaveform: (request) => ipcRenderer.invoke('waveform:generate', request),
 
+  // API-Keys (safeStorage)
+  setApiKey: (provider, key) => ipcRenderer.invoke('apiKey:set', { provider, key }),
+  getApiKey: (provider) => ipcRenderer.invoke('apiKey:get', provider),
+  hasApiKey: (provider) => ipcRenderer.invoke('apiKey:has', provider),
+  deleteApiKey: (provider) => ipcRenderer.invoke('apiKey:delete', provider),
+
   // Theme
   toggleTheme: () => ipcRenderer.invoke('theme:toggle'),
   getTheme: () => ipcRenderer.invoke('theme:get'),

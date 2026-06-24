@@ -34,6 +34,7 @@
   import * as projectActions from './lib/actions/projectActions'
   import * as exportActions from './lib/actions/exportActions'
   import * as waveformActions from './lib/actions/waveformActions'
+  import ApiKeySettings from './components/settings/ApiKeySettings.svelte'
   import * as themeActions from './lib/actions/themeActions'
   import { showToast } from './lib/actions/toastManager'
   import { setupShortcuts } from './lib/actions/shortcuts'
@@ -45,6 +46,7 @@
   let version = $state('...')
   let ffmpegAvailable = $state(false)
   let contextMenuRef: ContextMenu | undefined = $state()
+  let apiKeysOpen = $state(false)
 
   // --- Globaler ContextMenu-Zugang ---
   // Wird von ShotGrid etc. aufgerufen
@@ -165,6 +167,9 @@
         case 'view:generateWaveform':
           waveformActions.generateWaveform()
           break
+        case 'view:apiKeys':
+          apiKeysOpen = true
+          break
         default:
           console.warn('App: Unknown menu action:', action)
       }
@@ -269,6 +274,7 @@
 <!-- Globale Overlays -->
 <Toast />
 <ContextMenu bind:this={contextMenuRef} />
+<ApiKeySettings open={apiKeysOpen} onclose={() => (apiKeysOpen = false)} />
 
 <style>
   .app-shell {

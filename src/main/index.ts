@@ -124,6 +124,10 @@ function buildMenu(): void {
           label: 'Generate Waveform',
           click: () => sendMenuAction('view:generateWaveform'),
         },
+        {
+          label: 'API Keys…',
+          click: () => sendMenuAction('view:apiKeys'),
+        },
         { type: 'separator' },
         {
           label: 'Zoom In',

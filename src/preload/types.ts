@@ -122,10 +122,11 @@ export interface ElectronAPI {
   onClipExportProgress: (callback: (progress: ClipExportProgress) => void) => CleanupFn
 
   // API-Keys
-  setApiKey?: (provider: ApiKeyProvider, key: string) => Promise<{ success: boolean }>
-  getApiKey?: (provider: ApiKeyProvider) => Promise<ApiKeyGetResponse>
-  hasApiKey?: (provider: ApiKeyProvider) => Promise<ApiKeyHasResponse>
-  deleteApiKey?: (provider: ApiKeyProvider) => Promise<{ success: boolean }>
+  // API-Keys (implementiert — nicht optional)
+  setApiKey: (provider: ApiKeyProvider, key: string) => Promise<{ success: boolean; error?: string }>
+  getApiKey: (provider: ApiKeyProvider) => Promise<ApiKeyGetResponse>
+  hasApiKey: (provider: ApiKeyProvider) => Promise<ApiKeyHasResponse>
+  deleteApiKey: (provider: ApiKeyProvider) => Promise<{ success: boolean; error?: string }>
 
   // ElevenLabs
   transcribeElevenLabs?: (request: ElevenLabsTranscribeRequest) => Promise<TranscriptionStartResponse>

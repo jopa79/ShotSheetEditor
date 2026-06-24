@@ -120,6 +120,32 @@ export function generateWaveform(
   return api().generateWaveform(request)
 }
 
+// API-Keys (safeStorage)
+export function setApiKey(
+  provider: Parameters<ElectronAPI['setApiKey']>[0],
+  key: string
+): ReturnType<ElectronAPI['setApiKey']> {
+  return api().setApiKey(provider, key)
+}
+
+export function getApiKey(
+  provider: Parameters<ElectronAPI['getApiKey']>[0]
+): ReturnType<ElectronAPI['getApiKey']> {
+  return api().getApiKey(provider)
+}
+
+export function hasApiKey(
+  provider: Parameters<ElectronAPI['hasApiKey']>[0]
+): ReturnType<ElectronAPI['hasApiKey']> {
+  return api().hasApiKey(provider)
+}
+
+export function deleteApiKey(
+  provider: Parameters<ElectronAPI['deleteApiKey']>[0]
+): ReturnType<ElectronAPI['deleteApiKey']> {
+  return api().deleteApiKey(provider)
+}
+
 export function selectExportDir(): Promise<ExportSelectDirResponse> {
   return api().selectExportDir()
 }
