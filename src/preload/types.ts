@@ -31,9 +31,6 @@ import type {
   AudioExtractResponse,
   WaveformGenerateRequest,
   WaveformGenerateResponse,
-  ApiKeyProvider,
-  ApiKeyGetResponse,
-  ApiKeyHasResponse,
   ElevenLabsTranscribeRequest,
 } from '../shared/ipcPayloads'
 import type { Scene, ProjectData, ThumbResult, ClipExportRequest } from '../shared/models'
@@ -122,11 +119,6 @@ export interface ElectronAPI {
   onClipExportProgress: (callback: (progress: ClipExportProgress) => void) => CleanupFn
 
   // API-Keys
-  // API-Keys (implementiert — nicht optional)
-  setApiKey: (provider: ApiKeyProvider, key: string) => Promise<{ success: boolean; error?: string }>
-  getApiKey: (provider: ApiKeyProvider) => Promise<ApiKeyGetResponse>
-  hasApiKey: (provider: ApiKeyProvider) => Promise<ApiKeyHasResponse>
-  deleteApiKey: (provider: ApiKeyProvider) => Promise<{ success: boolean; error?: string }>
 
   // ElevenLabs
   transcribeElevenLabs?: (request: ElevenLabsTranscribeRequest) => Promise<TranscriptionStartResponse>

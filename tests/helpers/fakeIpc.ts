@@ -121,11 +121,6 @@ function buildDefaultApi(): ElectronAPI {
     cancelTranscription: vi.fn().mockResolvedValue({ success: true }),
     onTranscriptionProgress: (): CleanupFn => () => {},
 
-    setApiKey: vi.fn().mockResolvedValue({ success: true }),
-    getApiKey: vi.fn().mockResolvedValue({ success: true, key: undefined }),
-    hasApiKey: vi.fn().mockResolvedValue({ success: true, hasKey: false }),
-    deleteApiKey: vi.fn().mockResolvedValue({ success: true }),
-
     toggleTheme: vi.fn().mockResolvedValue({ success: true, theme: 'dark' }),
     getTheme: vi.fn().mockResolvedValue({ success: true, theme: 'dark' }),
 

@@ -1,0 +1,563 @@
+/* ============================================================================
+   LAYOUT & STRUCTURAL STYLES
+   ShotSheetEditor - 3-Panel Layout with Toolbar & Statusbar
+   ============================================================================ */
+
+/* ============================================================================
+   APP CONTAINER (Root Layout)
+   ============================================================================ */
+
+#app {
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  height: 100%;
+  background-color: var(--bg-0);
+}
+
+/* ============================================================================
+   TOOLBAR (40px)
+   ============================================================================ */
+
+.toolbar {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-md);
+  padding: 0 var(--sp-lg);
+  height: 40px;
+  background-color: var(--bg-1);
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+  -webkit-app-region: drag;
+}
+
+.toolbar-group {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-sm);
+  -webkit-app-region: no-drag;
+}
+
+.toolbar-group-start {
+  flex-shrink: 0;
+}
+
+.toolbar-group-end {
+  flex-shrink: 0;
+}
+
+.toolbar-separator {
+  width: 1px;
+  height: 20px;
+  background-color: var(--border);
+  flex-shrink: 0;
+}
+
+.toolbar-label {
+  font-size: var(--fs-micro);
+  font-weight: 600;
+  color: var(--text-2);
+  text-transform: uppercase;
+  letter-spacing: var(--ls-wide);
+  margin-right: var(--sp-xs);
+}
+
+/* ============================================================================
+   MAIN AREA (Content - flex row)
+   ============================================================================ */
+
+.main-area {
+  display: flex;
+  flex: 1;
+  min-height: 0;
+  background-color: var(--bg-0);
+  position: relative;
+}
+
+/* ============================================================================
+   SHOT GRID CONTAINER
+   ============================================================================ */
+
+.shot-grid-container {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-width: 0;
+  background-color: var(--bg-0);
+  position: relative;
+  overflow: hidden;
+}
+
+.shot-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+  gap: var(--sp-md);
+  padding: var(--sp-lg);
+  overflow-y: auto;
+  overflow-x: hidden;
+  flex: 1;
+  background-color: var(--bg-0);
+}
+
+/* Grid Size Variants */
+.shot-grid.grid-small {
+  grid-template-columns: repeat(auto-fill, minmax(80px, 1fr));
+  gap: var(--sp-sm);
+  padding: var(--sp-md);
+}
+
+.shot-grid.grid-medium {
+  grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
+  gap: var(--sp-md);
+  padding: var(--sp-lg);
+}
+
+.shot-grid.grid-large {
+  grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+  gap: var(--sp-md);
+  padding: var(--sp-lg);
+}
+
+.shot-grid.grid-xlarge {
+  grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+  gap: var(--sp-lg);
+  padding: var(--sp-xl);
+}
+
+/* ============================================================================
+   EMPTY STATE
+   ============================================================================ */
+
+.empty-state {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background-color: var(--bg-0);
+  pointer-events: none;
+  z-index: 10;
+}
+
+.empty-state-content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--sp-lg);
+  color: var(--text-2);
+  text-align: center;
+}
+
+.empty-state-icon {
+  font-size: 48px;
+  opacity: 0.3;
+}
+
+.empty-state-title {
+  font-size: var(--fs-emphasized);
+  font-weight: 600;
+  color: var(--text-1);
+}
+
+.empty-state-hint {
+  font-size: var(--fs-secondary);
+  color: var(--text-2);
+  max-width: 300px;
+}
+
+/* ============================================================================
+   VERTICAL RESIZE DIVIDER (4px)
+   ============================================================================ */
+
+.resize-divider {
+  flex-shrink: 0;
+  background-color: transparent;
+  cursor: col-resize;
+  transition: background-color var(--transition-fast);
+  position: relative;
+  z-index: 100;
+}
+
+.resize-divider::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 50%;
+  width: 4px;
+  height: 100%;
+  transform: translateX(-50%);
+  background-color: var(--border);
+  transition: background-color var(--transition-fast);
+}
+
+.resize-divider:hover::before {
+  background-color: var(--accent);
+}
+
+.resize-divider.dragging::before {
+  background-color: var(--accent);
+}
+
+.resize-divider-vertical {
+  width: 4px;
+  cursor: col-resize;
+}
+
+.resize-divider-vertical::before {
+  width: 4px;
+  height: 100%;
+}
+
+.resize-divider-horizontal {
+  height: 4px;
+  width: 100%;
+  cursor: row-resize;
+}
+
+.resize-divider-horizontal::before {
+  width: 100%;
+  height: 4px;
+}
+
+/* ============================================================================
+   SIDEBAR (280px, right side)
+   ============================================================================ */
+
+.sidebar {
+  display: flex;
+  flex-direction: column;
+  width: 280px;
+  min-width: 280px;
+  max-width: 280px;
+  height: 100%;
+  background-color: var(--bg-1);
+  border-left: 1px solid var(--border);
+  flex-shrink: 0;
+  overflow: hidden;
+}
+
+/* ============================================================================
+   PANELS (Video Preview & Info)
+   ============================================================================ */
+
+.panel {
+  display: flex;
+  flex-direction: column;
+  background-color: var(--bg-1);
+  overflow: hidden;
+}
+
+.video-panel {
+  flex: 0 1 auto;
+  min-height: 200px;
+}
+
+.info-panel {
+  flex: 1;
+  min-height: 150px;
+}
+
+.panel-header {
+  display: flex;
+  align-items: center;
+  height: 32px;
+  padding: 0 var(--sp-lg);
+  background-color: var(--bg-2);
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+}
+
+.panel-title {
+  font-size: var(--fs-micro);
+  font-weight: 600;
+  color: var(--text-1);
+  text-transform: uppercase;
+  letter-spacing: var(--ls-wide);
+  font-family: var(--font-mono);
+}
+
+.panel-body {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  padding: var(--sp-lg);
+  overflow-y: auto;
+  overflow-x: hidden;
+}
+
+/* ============================================================================
+   STATUSBAR (22px)
+   ============================================================================ */
+
+.statusbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-lg);
+  padding: 0 var(--sp-lg);
+  height: 22px;
+  background-color: var(--bg-2);
+  border-top: 1px solid var(--border);
+  flex-shrink: 0;
+  font-size: var(--fs-secondary);
+  color: var(--text-1);
+}
+
+.status-left,
+.status-center,
+.status-right {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-md);
+}
+
+.status-left {
+  flex: 1;
+}
+
+.status-center {
+  flex: 0 0 auto;
+}
+
+.status-right {
+  flex: 1;
+  justify-content: flex-end;
+}
+
+.status-item {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-xs);
+  font-size: var(--fs-secondary);
+  color: var(--text-1);
+}
+
+.status-dot {
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background-color: var(--text-2);
+  flex-shrink: 0;
+}
+
+.status-dot.ready {
+  background-color: var(--green);
+}
+
+.status-dot.processing {
+  background-color: var(--amber);
+  animation: pulse 1.5s ease-in-out infinite;
+}
+
+.status-dot.error {
+  background-color: var(--red);
+}
+
+@keyframes pulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.4;
+  }
+}
+
+.status-text {
+  font-size: var(--fs-secondary);
+  color: var(--text-1);
+}
+
+.status-label {
+  font-size: var(--fs-secondary);
+  color: var(--text-2);
+  margin-right: var(--sp-xs);
+}
+
+.status-divider {
+  width: 1px;
+  height: 12px;
+  background-color: var(--border);
+}
+
+/* ============================================================================
+   SELECTION BAR (Fixed bottom when shots selected)
+   ============================================================================ */
+
+.selection-bar {
+  position: fixed;
+  bottom: 22px;
+  left: 0;
+  right: 0;
+  height: 44px;
+  background-color: var(--accent-dim);
+  border-top: 1px solid var(--accent);
+  border-bottom: 1px solid var(--accent);
+  display: flex;
+  align-items: center;
+  z-index: 200;
+  -webkit-app-region: no-drag;
+  animation: slideUp 0.2s ease-out;
+}
+
+@keyframes slideUp {
+  from {
+    transform: translateY(100%);
+  }
+  to {
+    transform: translateY(0);
+  }
+}
+
+.selection-bar-content {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-lg);
+  padding: 0 var(--sp-xl);
+  width: 100%;
+}
+
+.selection-bar-content > span {
+  font-size: var(--fs-secondary);
+  font-weight: 500;
+  color: var(--accent);
+  flex-shrink: 0;
+}
+
+.sb-btn {
+  padding: var(--sp-sm) var(--sp-lg);
+  font-size: var(--fs-secondary);
+  font-weight: 500;
+  color: var(--text-0);
+  background-color: rgba(0, 0, 0, 0.2);
+  border: 1px solid var(--accent);
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  -webkit-app-region: no-drag;
+}
+
+.sb-btn:hover {
+  background-color: rgba(0, 0, 0, 0.4);
+  border-color: var(--accent);
+}
+
+.sb-btn:active {
+  background-color: rgba(0, 0, 0, 0.5);
+}
+
+.sb-btn-dismiss {
+  margin-left: auto;
+  flex-shrink: 0;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background-color: rgba(0, 0, 0, 0.2);
+  border: 1px solid var(--border);
+}
+
+.sb-btn-dismiss:hover {
+  background-color: rgba(255, 92, 92, 0.2);
+  border-color: var(--red);
+  color: var(--red);
+}
+
+/* ============================================================================
+   PROGRESS OVERLAY
+   ============================================================================ */
+
+.progress-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(14, 15, 17, 0.8);
+  backdrop-filter: blur(2px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 300;
+  -webkit-app-region: no-drag;
+}
+
+.progress-content {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-lg);
+  padding: var(--sp-2xl);
+  background-color: var(--bg-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-lg);
+  min-width: 320px;
+}
+
+.progress-title {
+  font-size: var(--fs-emphasized);
+  font-weight: 600;
+  color: var(--text-0);
+  text-align: center;
+}
+
+.progress-bar {
+  width: 100%;
+  height: 6px;
+  background-color: var(--bg-3);
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+}
+
+.progress-bar-fill {
+  height: 100%;
+  background-color: var(--accent);
+  transition: width 0.2s ease-out;
+  border-radius: var(--radius-sm);
+}
+
+.progress-text {
+  text-align: center;
+  font-size: var(--fs-secondary);
+  color: var(--text-1);
+  font-family: var(--font-mono);
+}
+
+/* ============================================================================
+   RESPONSIVE ADJUSTMENTS
+   ============================================================================ */
+
+@media (max-width: 1200px) {
+  .sidebar {
+    width: 240px;
+    min-width: 240px;
+    max-width: 240px;
+  }
+}
+
+@media (max-width: 768px) {
+  .toolbar {
+    flex-wrap: wrap;
+    height: auto;
+    padding: var(--sp-md) var(--sp-md);
+    gap: var(--sp-sm);
+  }
+
+  .toolbar-group {
+    gap: var(--sp-xs);
+  }
+
+  .sidebar {
+    display: none;
+  }
+
+  .resize-divider-vertical {
+    display: none;
+  }
+}

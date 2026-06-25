@@ -11,15 +11,12 @@ import { exportClips, cancelClipExport } from './clipExporter'
 import type { ClipExportRequest } from '../shared/models'
 import { extractAudio } from './audioExtractor'
 import { generateWaveform } from './waveformGenerator'
-import { setApiKey, getApiKey, hasApiKey, deleteApiKey } from './apiKeyManager'
 import { startTranscription, cancelTranscription } from './transcriber'
 import type {
   AudioExtractRequest,
   WaveformGenerateRequest,
-  ApiKeySetRequest,
   TranscriptionStartRequest,
 } from '../shared/ipcPayloads'
-import type { ApiKeyProvider } from '../shared/models'
 import { newProject, openProject, saveProject } from './projectManager'
 import { showExportDirDialog, showOpenVideoDialog, showOpenProjectDialog, showSaveProjectDialog, showUnsavedChangesDialog } from './dialogManager'
 import { toggleTheme, getThemeSource } from './windowManager'
@@ -332,36 +329,6 @@ export function registerIpcHandlers(getMainWindow: WindowGetter): void {
     cancelTranscription()
     return { success: true }
   })
-
-  // API-Key-Verwaltung (safeStorage) — Validierung in apiKeyManager
-  ipcMain.handle(
-    IPC_CHANNELS.API_KEY_SET,
-    wrapHandler(async (_event, data) => {
-      const { provider, key } = data as ApiKeySetRequest
-      return setApiKey(provider, key)
-    }),
-  )
-  ipcMain.handle(
-    IPC_CHANNELS.API_KEY_GET,
-    wrapHandler(async (_event, provider) => {
-      validateString(provider, 'provider')
-      return getApiKey(provider as ApiKeyProvider)
-    }),
-  )
-  ipcMain.handle(
-    IPC_CHANNELS.API_KEY_HAS,
-    wrapHandler(async (_event, provider) => {
-      validateString(provider, 'provider')
-      return hasApiKey(provider as ApiKeyProvider)
-    }),
-  )
-  ipcMain.handle(
-    IPC_CHANNELS.API_KEY_DELETE,
-    wrapHandler(async (_event, provider) => {
-      validateString(provider, 'provider')
-      return deleteApiKey(provider as ApiKeyProvider)
-    }),
-  )
 
   ipcMain.handle(IPC_CHANNELS.EXPORT_SELECT_DIR, async () => {
     try {

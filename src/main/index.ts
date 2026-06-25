@@ -126,10 +126,6 @@ function buildMenu(): void {
           click: () => sendMenuAction('view:generateWaveform'),
         },
         {
-          label: 'API Keys…',
-          click: () => sendMenuAction('view:apiKeys'),
-        },
-        {
           label: 'Transcribe…',
           click: () => sendMenuAction('view:transcribe'),
         },

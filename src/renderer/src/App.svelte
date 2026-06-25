@@ -34,7 +34,6 @@
   import * as projectActions from './lib/actions/projectActions'
   import * as exportActions from './lib/actions/exportActions'
   import * as waveformActions from './lib/actions/waveformActions'
-  import ApiKeySettings from './components/settings/ApiKeySettings.svelte'
   import TranscriptionPanel from './components/settings/TranscriptionPanel.svelte'
   import * as themeActions from './lib/actions/themeActions'
   import { showToast } from './lib/actions/toastManager'
@@ -47,7 +46,6 @@
   let version = $state('...')
   let ffmpegAvailable = $state(false)
   let contextMenuRef: ContextMenu | undefined = $state()
-  let apiKeysOpen = $state(false)
   let transcribeOpen = $state(false)
 
   // --- Globaler ContextMenu-Zugang ---
@@ -169,9 +167,6 @@
         case 'view:generateWaveform':
           waveformActions.generateWaveform()
           break
-        case 'view:apiKeys':
-          apiKeysOpen = true
-          break
         case 'view:transcribe':
           transcribeOpen = true
           break
@@ -279,7 +274,6 @@
 <!-- Globale Overlays -->
 <Toast />
 <ContextMenu bind:this={contextMenuRef} />
-<ApiKeySettings open={apiKeysOpen} onclose={() => (apiKeysOpen = false)} />
 <TranscriptionPanel open={transcribeOpen} onclose={() => (transcribeOpen = false)} />
 
 <style>

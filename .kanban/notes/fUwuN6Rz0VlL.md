@@ -1,0 +1,1 @@
+Gecuttet in Welle-1-Planung (devils-advocate: Over-Engineering). #5 fakeIpc liefert die Testbarkeit. Begründung: docs/adr/0001-no-actioncontext-di.md. Nicht erneut vorschlagen.

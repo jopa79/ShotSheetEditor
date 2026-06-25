@@ -1,0 +1,1 @@
+WELLE 2 — nicht jetzt. devils-advocate CUT aus Welle 1: Zwei-Schreibpfad-Problem (App.svelte:93-103 progressives Append + detectionActions.ts:59 finales setScenes) muss zuerst gelöst werden, sonst Doppel-Szenen/verlorene Thumbnails.

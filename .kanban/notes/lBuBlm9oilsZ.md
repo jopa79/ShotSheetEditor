@@ -1,0 +1,1 @@
+WELLE 2 — nicht jetzt. Deepening ja, aber Klassen-Umbau ist Gold-Plating (devils-advocate). Hängt mit #4 zusammen (DetectionOrchestrator konsumiert die Queue).

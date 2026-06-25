@@ -1,0 +1,1 @@
+Welle 1, ABER: erst Charakterisierungs-Tests (cancel-Semantik, progress-streaming, orphaned-process) schreiben, dann Refactor. devils-advocate: 3 verschränkte Cancel-Invarianten — Größe eher L+. Baut auf #1 (Path-Security) auf, da proxyGenerator denselben Path-Check nutzt.
