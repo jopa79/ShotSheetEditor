@@ -1,5 +1,0 @@
-/* ShotSheetEditor V2.0 — Globale Styles */
-/* Importiert Tokens + Reset in korrekter Reihenfolge */
-
-@import './tokens.css';
-@import './reset.css';

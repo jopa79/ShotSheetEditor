@@ -38,3 +38,6 @@ temp/
 
 # Lokales Kanban-Board
 .kaban/
+
+# Lokale Agent-Worktrees (nie committen)
+.claude/worktrees/
