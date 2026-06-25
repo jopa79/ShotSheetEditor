@@ -3,6 +3,7 @@
 // local-media:// umgeht das, indem der Main-Process als sicherer File-Server dient.
 
 import { protocol, net } from 'electron'
+import { pathToFileURL } from 'url'
 import { validateForRead } from './pathSecurity'
 
 const SCHEME = 'local-media'
@@ -31,7 +32,7 @@ export function registerSchemes(): void {
  * Erlaubt Dateien aus homeDir und tmpDir (Proxy-Videos liegen in tmp).
  */
 export function registerProtocolHandler(): void {
-  protocol.handle(SCHEME, (request) => {
+  protocol.handle(SCHEME, async (request) => {
     // local-media:///Users/path/to/file.mp4 → /Users/path/to/file.mp4
     // new URL() ist robust auch bei URLs mit Host-Anteil (manuelles slice() waere fragil).
     const decoded = decodeURIComponent(new URL(request.url).pathname)
@@ -48,7 +49,14 @@ export function registerProtocolHandler(): void {
       return new Response('Forbidden: path outside allowed directories', { status: 403 })
     }
 
-    return net.fetch(`file://${resolved}`)
+    try {
+      // pathToFileURL kodiert Leerzeichen/Sonderzeichen korrekt — `file://` + Pfad
+      // waere bei Pfaden mit Leerzeichen ("My Video.mp4") eine ungueltige URL.
+      return await net.fetch(pathToFileURL(resolved).href)
+    } catch (err) {
+      console.error(`protocolHandler: net.fetch fehlgeschlagen — ${resolved}:`, err)
+      return new Response('Not found', { status: 404 })
+    }
   })
 }
 
