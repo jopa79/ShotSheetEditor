@@ -6,6 +6,7 @@ import { IPC_CHANNELS, QUIT_TIMEOUT_MS } from '../shared/constants'
 import sceneDetector from './sceneDetector'
 import protocolHandler from './protocolHandler'
 import { killAll as killAllFFmpegJobs } from './ffmpegJobManager'
+import { cancelTranscription } from './transcriber'
 
 // Scheme vor app.ready registrieren — zwingend fuer stream: true
 protocolHandler.registerSchemes()
@@ -128,6 +129,10 @@ function buildMenu(): void {
           label: 'API Keys…',
           click: () => sendMenuAction('view:apiKeys'),
         },
+        {
+          label: 'Transcribe…',
+          click: () => sendMenuAction('view:transcribe'),
+        },
         { type: 'separator' },
         {
           label: 'Zoom In',
@@ -195,6 +200,7 @@ app.on('before-quit', (event) => {
   // cancelDetection() bleibt als explizite Sicherheit (setzt _activeDetectJob=null,
   // idempotent — schadet nicht wenn killAll() den Prozess bereits beendet hat)
   sceneDetector.cancelDetection()
+  cancelTranscription() // whisper laeuft mit eigenem spawn → sonst orphaned
 
   if (isQuitting) return
 
@@ -221,6 +227,7 @@ ipcMain.handle(IPC_CHANNELS.APP_CONFIRM_QUIT, () => {
   try {
     // cancelDetection() als explizite Sicherheit (idempotent, killAll() erfasst detect bereits)
     sceneDetector.cancelDetection()
+    cancelTranscription()
     // Alle noch laufenden ffmpeg-Jobs beenden (inkl. Frame-Extractions und detect-Jobs seit Welle 2)
     killAllFFmpegJobs()
   } catch {

@@ -35,6 +35,7 @@
   import * as exportActions from './lib/actions/exportActions'
   import * as waveformActions from './lib/actions/waveformActions'
   import ApiKeySettings from './components/settings/ApiKeySettings.svelte'
+  import TranscriptionPanel from './components/settings/TranscriptionPanel.svelte'
   import * as themeActions from './lib/actions/themeActions'
   import { showToast } from './lib/actions/toastManager'
   import { setupShortcuts } from './lib/actions/shortcuts'
@@ -47,6 +48,7 @@
   let ffmpegAvailable = $state(false)
   let contextMenuRef: ContextMenu | undefined = $state()
   let apiKeysOpen = $state(false)
+  let transcribeOpen = $state(false)
 
   // --- Globaler ContextMenu-Zugang ---
   // Wird von ShotGrid etc. aufgerufen
@@ -170,6 +172,9 @@
         case 'view:apiKeys':
           apiKeysOpen = true
           break
+        case 'view:transcribe':
+          transcribeOpen = true
+          break
         default:
           console.warn('App: Unknown menu action:', action)
       }
@@ -275,6 +280,7 @@
 <Toast />
 <ContextMenu bind:this={contextMenuRef} />
 <ApiKeySettings open={apiKeysOpen} onclose={() => (apiKeysOpen = false)} />
+<TranscriptionPanel open={transcribeOpen} onclose={() => (transcribeOpen = false)} />
 
 <style>
   .app-shell {

@@ -49,6 +49,11 @@ const api: ElectronAPI = {
   // Waveform-Peaks
   generateWaveform: (request) => ipcRenderer.invoke('waveform:generate', request),
 
+  // Whisper-Transkription
+  startTranscription: (request) => ipcRenderer.invoke('transcription:start', request),
+  cancelTranscription: () => ipcRenderer.invoke('transcription:cancel'),
+  onTranscriptionProgress: (callback) => createListener('transcription:progress', callback),
+
   // API-Keys (safeStorage)
   setApiKey: (provider, key) => ipcRenderer.invoke('apiKey:set', { provider, key }),
   getApiKey: (provider) => ipcRenderer.invoke('apiKey:get', provider),

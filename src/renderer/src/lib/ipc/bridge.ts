@@ -120,6 +120,23 @@ export function generateWaveform(
   return api().generateWaveform(request)
 }
 
+// Whisper-Transkription (lokal)
+export function startTranscription(
+  request: Parameters<ElectronAPI['startTranscription']>[0]
+): ReturnType<ElectronAPI['startTranscription']> {
+  return api().startTranscription(request)
+}
+
+export function cancelTranscription(): Promise<{ success: boolean }> {
+  return api().cancelTranscription()
+}
+
+export function onTranscriptionProgress(
+  callback: Parameters<ElectronAPI['onTranscriptionProgress']>[0]
+): CleanupFn {
+  return api().onTranscriptionProgress(callback)
+}
+
 // API-Keys (safeStorage)
 export function setApiKey(
   provider: Parameters<ElectronAPI['setApiKey']>[0],

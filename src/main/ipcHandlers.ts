@@ -12,7 +12,13 @@ import type { ClipExportRequest } from '../shared/models'
 import { extractAudio } from './audioExtractor'
 import { generateWaveform } from './waveformGenerator'
 import { setApiKey, getApiKey, hasApiKey, deleteApiKey } from './apiKeyManager'
-import type { AudioExtractRequest, WaveformGenerateRequest, ApiKeySetRequest } from '../shared/ipcPayloads'
+import { startTranscription, cancelTranscription } from './transcriber'
+import type {
+  AudioExtractRequest,
+  WaveformGenerateRequest,
+  ApiKeySetRequest,
+  TranscriptionStartRequest,
+} from '../shared/ipcPayloads'
 import type { ApiKeyProvider } from '../shared/models'
 import { newProject, openProject, saveProject } from './projectManager'
 import { showExportDirDialog, showOpenVideoDialog, showOpenProjectDialog, showSaveProjectDialog, showUnsavedChangesDialog } from './dialogManager'
@@ -312,6 +318,20 @@ export function registerIpcHandlers(getMainWindow: WindowGetter): void {
       return generateWaveform(data as WaveformGenerateRequest)
     }),
   )
+
+  // Whisper-Transkription (lokal) — Binary/Modell-Aufloesung in transcriber
+  ipcMain.handle(
+    IPC_CHANNELS.TRANSCRIPTION_START,
+    wrapHandler(async (_event, data) => {
+      return startTranscription(data as TranscriptionStartRequest, (progress) => {
+        sendProgress(getMainWindow, IPC_CHANNELS.TRANSCRIPTION_PROGRESS, progress)
+      })
+    }),
+  )
+  ipcMain.handle(IPC_CHANNELS.TRANSCRIPTION_CANCEL, () => {
+    cancelTranscription()
+    return { success: true }
+  })
 
   // API-Key-Verwaltung (safeStorage) — Validierung in apiKeyManager
   ipcMain.handle(

@@ -102,10 +102,10 @@ export interface ElectronAPI {
   // --- V2.0 Neue Methods (werden in spaeterer Phase implementiert) ---
   // Hier schon als Interface definiert fuer Forward-Compatibility
 
-  // Transcription
-  startTranscription?: (request: TranscriptionStartRequest) => Promise<TranscriptionStartResponse>
-  cancelTranscription?: () => Promise<{ success: boolean }>
-  onTranscriptionProgress?: (callback: (progress: TranscriptionProgress) => void) => CleanupFn
+  // Transcription (implementiert — nicht optional)
+  startTranscription: (request: TranscriptionStartRequest) => Promise<TranscriptionStartResponse>
+  cancelTranscription: () => Promise<{ success: boolean }>
+  onTranscriptionProgress: (callback: (progress: TranscriptionProgress) => void) => CleanupFn
 
   // Audio (implementiert — nicht optional)
   extractAudio: (request: AudioExtractRequest) => Promise<AudioExtractResponse>

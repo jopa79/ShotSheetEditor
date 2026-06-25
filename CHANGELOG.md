@@ -8,6 +8,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
+- Whisper-Transkription (`transcriber.ts`, lokal): Video → 16 kHz WAV → whisper.cpp → Segmente (Parsing der `[HH:MM:SS --> …]`-Zeilen, progressive Anzeige, Cancel). Binary/Modell env-konfigurierbar (`WHISPER_BIN` / `WHISPER_MODEL[_DIR]`) mit klarem Fehler wenn fehlend. `TranscriptionPanel.svelte` (Menue "View → Transcribe…", Modell-Wahl, Segment-Liste). Voller IPC-Pfad (`transcription:start/progress/cancel`)
 - API-Key-Verwaltung (`apiKeyManager.ts`): Keys (OpenAI/Anthropic/ElevenLabs) werden via Electron `safeStorage` verschluesselt in `userData/apikeys.json` (Mode 0600) gespeichert — nie im Klartext. Settings-Dialog `ApiKeySettings.svelte` (Menue "View → API Keys…") zum Eingeben/Entfernen + Status-Anzeige. Voller IPC-Pfad (`apiKey:set/get/has/delete`). Basis fuer Whisper-Cloud/ElevenLabs/AI
 - Waveform: Audio-Peaks aus der WAV berechnen (`waveformGenerator.ts`, 16-bit PCM → normalisierte min/max-Peaks pro Bucket) + `WaveformDisplay.svelte` (Canvas, Playhead, Klick-Seek) unter der Timeline. Menue "View → Generate Waveform" (extrahiert Audio + berechnet Peaks). Voller IPC-Pfad (`waveform:generate`)
 - Audio-Extraktion (`audioExtractor.ts`): extrahiert die Tonspur als WAV (Default 16 kHz Mono PCM s16le fuer Whisper) via FFmpegJobManager; Output standardmaessig in ein Temp-Verzeichnis. Voller IPC-Pfad (`audio:extract`). Fundament fuer Waveform + Transkription

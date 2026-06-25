@@ -117,6 +117,10 @@ function buildDefaultApi(): ElectronAPI {
       data: { peaks: [], sampleRate: 16000, duration: 0 },
     }),
 
+    startTranscription: vi.fn().mockResolvedValue({ success: true, segments: [] }),
+    cancelTranscription: vi.fn().mockResolvedValue({ success: true }),
+    onTranscriptionProgress: (): CleanupFn => () => {},
+
     setApiKey: vi.fn().mockResolvedValue({ success: true }),
     getApiKey: vi.fn().mockResolvedValue({ success: true, key: undefined }),
     hasApiKey: vi.fn().mockResolvedValue({ success: true, hasKey: false }),
