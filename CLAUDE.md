@@ -123,3 +123,9 @@ Canonical label vocabulary (`needs-triage`, `needs-info`, `ready-for-agent`, `re
 ### Domain docs
 
 Single-context layout — one `CONTEXT.md` + `docs/adr/` at the repo root. See `docs/agents/domain.md`.
+
+## Task-Quelle
+
+kanban
+
+<!-- DevPulse liest diese Angabe (ADR-0017 in jopa79/dev-pulse). Auf `github` erst umstellen, wenn die offenen Kanban-Tasks gesichtet sind. -->
